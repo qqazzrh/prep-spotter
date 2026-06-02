@@ -88,7 +88,10 @@ export const Route = createFileRoute("/api/brief")({
 
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
+            // Emit the prefilled "{" so the client sees a complete JSON doc.
+            controller.enqueue(encoder.encode("{"));
             let buf = "";
+            let stopReason: string | null = null;
             try {
               while (true) {
                 const { done, value } = await reader.read();
@@ -110,6 +113,8 @@ export const Route = createFileRoute("/api/brief")({
                       typeof evt.delta.text === "string"
                     ) {
                       controller.enqueue(encoder.encode(evt.delta.text));
+                    } else if (evt.type === "message_delta" && evt.delta?.stop_reason) {
+                      stopReason = evt.delta.stop_reason;
                     }
                   } catch {
                     // ignore partial / non-JSON
@@ -119,6 +124,9 @@ export const Route = createFileRoute("/api/brief")({
             } catch (e) {
               controller.error(e);
               return;
+            }
+            if (stopReason && stopReason !== "end_turn") {
+              console.warn(`Anthropic stop_reason: ${stopReason}`);
             }
             controller.close();
           },
