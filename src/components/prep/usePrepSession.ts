@@ -39,6 +39,7 @@ export function usePrepSession() {
     brief: false,
   });
   const [brief, setBrief] = useState<BriefState>({ kind: "none" });
+  const [streamingText, setStreamingText] = useState("");
   const resultsRef = useRef<Record<string, TavilyResponse>>({});
   const plannedRef = useRef<PlannedQuery[]>([]);
 
