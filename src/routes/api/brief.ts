@@ -61,10 +61,16 @@ export const Route = createFileRoute("/api/brief")({
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5",
-            max_tokens: body.mode === "quick" ? 4500 : 7000,
+            max_tokens: body.mode === "quick" ? 6000 : 8000,
             system,
             stream: true,
-            messages: [{ role: "user", content: user }],
+            messages: [
+              { role: "user", content: user },
+              // Prefill assistant turn with "{" to force pure JSON output
+              // (no markdown fences, no preamble). We re-prepend "{" to
+              // the streamed body below.
+              { role: "assistant", content: "{" },
+            ],
           }),
         });
 
