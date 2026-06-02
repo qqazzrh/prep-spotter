@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { TavilyResponse, QuickScreen, DeepBrief } from "./types";
+import type { TavilyResult, TavilyResponse, QuickScreen, DeepBrief } from "./types";
 
 const QUICK_SYSTEM =
   "You are an experienced venture capitalist and startup research analyst. Given raw web search results about a founder and/or company, create a concise first-pass VC screen. The goal is to help a VC decide whether this is interesting enough for deeper diligence. Be direct, skeptical, evidence-based, and avoid hype. Flag unknowns clearly. Produce structured JSON with these exact keys: searchSummary, companyOneLiner, founderCredibility, companyClarity, recentMomentum, fundingSignal, marketCategory, competitors, reasonsToBeInterested, redFlagsOrUnknowns, quickVerdict, theOneQuestion. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' (where N is the number of search queries provided) that synthesizes what was actually found across the searches — the strongest signals, the biggest gaps, and the overall picture. Be plain-spoken and concrete, no hype. Respond with ONLY a single JSON object, no prose, no markdown fences.";
@@ -7,6 +7,30 @@ const QUICK_SYSTEM =
 const DEEP_SYSTEM =
   "You are an experienced venture capitalist who has invested in successful startups. Given raw web search results about a founder and/or company, create a deep VC diligence brief. Be skeptical, evidence-based, and practical. Separate verified facts from assumptions. Flag missing information. Produce structured JSON with these exact keys: searchSummary, executiveSummary, founderMarketFit, foundingTeam, publishedMaterialAndSocialPresence, companySnapshot, tractionValidation, marketSizing, competitorLandscape, fundingBenchmark, businessModel, risksAndRedFlags, diligenceQuestions, investmentView. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' (where N is the number of search queries provided) that synthesizes what was actually found across the searches — the strongest signals, the biggest gaps, and the overall picture. Be plain-spoken and concrete, no hype. Respond with ONLY a single JSON object, no prose, no markdown fences.";
 
+
+function relevanceTokens(name: string): string[] {
+  return name.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+}
+
+function filterRelevant(
+  results: TavilyResult[],
+  founder: string,
+  company: string
+): TavilyResult[] {
+  const founderTokens = relevanceTokens(founder);
+  const companyTokens = relevanceTokens(company);
+  if (founderTokens.length === 0 && companyTokens.length === 0) return results;
+
+  const relevant = results.filter((r) => {
+    const text = `${r.title} ${r.content}`.toLowerCase();
+    return (
+      founderTokens.some((t) => text.includes(t)) ||
+      companyTokens.some((t) => text.includes(t))
+    );
+  });
+
+  return relevant.length > 0 ? relevant : results;
+}
 
 function buildUserMessage(
   founder: string,
@@ -18,9 +42,10 @@ function buildUserMessage(
   const perResultChars = mode === "deep" ? 450 : 700;
   const trimmed: Record<string, unknown> = {};
   for (const [q, r] of Object.entries(results)) {
+    const filtered = filterRelevant(r.results || [], founder, company);
     trimmed[q] = {
       answer: (r.answer || "").slice(0, 400),
-      results: (r.results || []).slice(0, perQueryResults).map((x) => ({
+      results: filtered.slice(0, perQueryResults).map((x) => ({
         title: x.title,
         url: x.url,
         content: (x.content || "").slice(0, perResultChars),
