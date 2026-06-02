@@ -2,7 +2,7 @@ import type { DeepBrief, TavilyResponse } from "@/lib/prep/types";
 import { VerdictBadge } from "./VerdictBadge";
 import { SourcesFooter } from "./SourcesFooter";
 import { useState } from "react";
-import { elevenLabsTTS } from "@/lib/prep/elevenlabs";
+
 
 const UNKNOWN = "Unknown from public sources.";
 
@@ -22,9 +22,6 @@ export function DeepBriefView({
   onNew: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [hideListen, setHideListen] = useState(false);
-  const [loadingAudio, setLoadingAudio] = useState(false);
 
   const text = data ? formatDeep(founder, company, data) : raw || "";
 
@@ -34,18 +31,6 @@ export function DeepBriefView({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const listen = async () => {
-    if (!text) return;
-    setLoadingAudio(true);
-    try {
-      const url = await elevenLabsTTS(text);
-      setAudioUrl(url);
-    } catch {
-      setHideListen(true);
-    } finally {
-      setLoadingAudio(false);
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -236,19 +221,8 @@ export function DeepBriefView({
         <button onClick={copy} className="px-4 h-11 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-95">
           {copied ? "Copied" : "Copy brief"}
         </button>
-        {!hideListen && (
-          <button
-            onClick={listen}
-            disabled={loadingAudio}
-            className="px-4 h-11 rounded-lg border border-border text-foreground hover:bg-secondary disabled:opacity-60"
-          >
-            {loadingAudio ? "Generating audio…" : "Listen"}
-          </button>
-        )}
-        {audioUrl && (
-          <audio src={audioUrl} controls autoPlay className="h-11" />
-        )}
       </div>
+
 
       <SourcesFooter results={results} />
     </div>
