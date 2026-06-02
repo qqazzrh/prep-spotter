@@ -47,21 +47,31 @@ export function DeepBriefView({
         </div>
       </div>
 
-      {!data && raw && (
-        <div className="bg-card border border-border rounded-xl p-5 mb-6">
-          <p className="text-sm text-[oklch(0.85_0.14_220)] mb-3">Structured parsing failed, showing raw brief.</p>
-          <pre className="whitespace-pre-wrap text-sm text-foreground">{raw}</pre>
+      {/* Research summary on top */}
+      <div className="bg-card border-l-4 border-l-[oklch(0.85_0.14_220)] border border-border rounded-xl p-6 mb-6">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+          Research summary
         </div>
-      )}
+        {data?.searchSummary ? (
+          <p className="text-foreground leading-relaxed text-base md:text-lg">
+            {data.searchSummary}
+          </p>
+        ) : raw ? (
+          <pre className="whitespace-pre-wrap text-sm text-foreground">{raw}</pre>
+        ) : (
+          <p className="text-muted-foreground">No summary available.</p>
+        )}
+      </div>
+
+      {/* Graph: risks by severity + traction confidence */}
+      {data && <DiligenceCharts data={data} />}
+
+      {/* Expandable, clickable sources per query */}
+      <ExpandableSources results={results} />
 
       {data && (
         <ol className="space-y-5 list-none">
-          {data.searchSummary && (
-            <li className="bg-card border-l-4 border-l-[oklch(0.85_0.14_220)] border border-border rounded-xl p-5">
-              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Research summary</h3>
-              <p className="text-foreground leading-relaxed">{data.searchSummary}</p>
-            </li>
-          )}
+
 
 
           <Section n={1} title="Executive summary">
