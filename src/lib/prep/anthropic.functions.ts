@@ -118,31 +118,67 @@ export const generateBriefFn = createServerFn({ method: "POST" })
     }
   });
 
+async function streamBrief(
+  mode: "quick" | "deep",
+  founder: string,
+  company: string,
+  results: Record<string, TavilyResponse>,
+  onDelta?: (chunk: string, accumulated: string) => void
+): Promise<{ kind: "raw"; raw: string } | { kind: "error"; error: string }> {
+  try {
+    const resp = await fetch("/api/brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, founder, company, results }),
+    });
+    if (!resp.ok || !resp.body) {
+      const text = await resp.text().catch(() => "");
+      return { kind: "error", error: `HTTP ${resp.status}: ${text.slice(0, 200)}` };
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let raw = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      raw += chunk;
+      onDelta?.(chunk, raw);
+    }
+    return { kind: "raw", raw };
+  } catch (e) {
+    return { kind: "error", error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function generateQuickScreen(
   founder: string,
   company: string,
-  results: Record<string, TavilyResponse>
+  results: Record<string, TavilyResponse>,
+  onDelta?: (chunk: string, accumulated: string) => void
 ): Promise<AnthropicOutcome<QuickScreen>> {
-  const out = await generateBriefFn({
-    data: { mode: "quick", founder, company, results },
-  });
-  if (out.kind === "ok") {
-    return { kind: "ok", data: JSON.parse(out.parsedJson) as QuickScreen, raw: out.raw };
+  const out = await streamBrief("quick", founder, company, results, onDelta);
+  if (out.kind === "error") return out;
+  const parsed = extractJson(out.raw);
+  if (parsed && typeof parsed === "object") {
+    return { kind: "ok", data: parsed as QuickScreen, raw: out.raw };
   }
-  return out;
+  return { kind: "raw", raw: out.raw };
 }
 
 export async function generateDeepBrief(
   founder: string,
   company: string,
-  results: Record<string, TavilyResponse>
+  results: Record<string, TavilyResponse>,
+  onDelta?: (chunk: string, accumulated: string) => void
 ): Promise<AnthropicOutcome<DeepBrief>> {
-  const out = await generateBriefFn({
-    data: { mode: "deep", founder, company, results },
-  });
-  if (out.kind === "ok") {
-    return { kind: "ok", data: JSON.parse(out.parsedJson) as DeepBrief, raw: out.raw };
+  const out = await streamBrief("deep", founder, company, results, onDelta);
+  if (out.kind === "error") return out;
+  const parsed = extractJson(out.raw);
+  if (parsed && typeof parsed === "object") {
+    return { kind: "ok", data: parsed as DeepBrief, raw: out.raw };
   }
-  return out;
+  return { kind: "raw", raw: out.raw };
 }
+
 

@@ -39,6 +39,7 @@ export function usePrepSession() {
     brief: false,
   });
   const [brief, setBrief] = useState<BriefState>({ kind: "none" });
+  const [streamingText, setStreamingText] = useState("");
   const resultsRef = useRef<Record<string, TavilyResponse>>({});
   const plannedRef = useRef<PlannedQuery[]>([]);
 
@@ -79,10 +80,13 @@ export function usePrepSession() {
 
   const generateBrief = useCallback(
     async (m: Mode) => {
+      setStreamingText("");
       setBrief({ kind: "loading" });
       setPhase("result");
+      const onDelta = (_chunk: string, accumulated: string) =>
+        setStreamingText(accumulated);
       const fn = m === "quick" ? generateQuickScreen : generateDeepBrief;
-      const outcome = await fn(founder, company, resultsRef.current);
+      const outcome = await fn(founder, company, resultsRef.current, onDelta);
       setBrief(
         m === "quick"
           ? { kind: "quick", outcome: outcome as AnthropicOutcome<QuickScreen> }
@@ -92,6 +96,7 @@ export function usePrepSession() {
     },
     [founder, company]
   );
+
 
 
   const start = useCallback(
@@ -161,6 +166,7 @@ export function usePrepSession() {
     completed,
     total,
     brief,
+    streamingText,
     allResults,
     setFounder,
     setCompany,

@@ -69,7 +69,7 @@ function PrepApp() {
 
   // result
   if (s.brief.kind === "loading") {
-    return <BriefLoading mode={s.mode} />;
+    return <BriefLoading mode={s.mode} streamingText={s.streamingText} />;
   }
 
   if (s.brief.kind === "quick") {
@@ -144,25 +144,51 @@ function ErrorScreen({ message, onNew }: { message: string; onNew: () => void })
   );
 }
 
-function BriefLoading({ mode }: { mode: "quick" | "deep" }) {
+function BriefLoading({
+  mode,
+  streamingText,
+}: {
+  mode: "quick" | "deep";
+  streamingText: string;
+}) {
   const label = mode === "deep" ? "Deep Diligence" : "Quick VC Screen";
   const hint = mode === "deep"
-    ? "Synthesizing 13 sections from all sources — this usually takes 20–40 seconds."
-    : "Synthesizing the screen from collected sources — about 10–20 seconds.";
+    ? "Streaming 13 sections from the model — first content appears in 1–2 seconds."
+    : "Streaming the screen from collected sources — first content appears in 1–2 seconds.";
+  const chars = streamingText.length;
+  // Strip JSON syntax so the preview reads like prose.
+  const preview = streamingText
+    .replace(/[{}\[\]"`]/g, " ")
+    .replace(/\\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(-600);
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-lg text-center">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+    <main className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-2xl">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 text-center">
           Generating {label}
         </div>
-        <h2 className="text-2xl font-bold text-foreground mb-6">
-          Writing your research summary…
+        <h2 className="text-2xl font-bold text-foreground mb-6 text-center">
+          {chars > 0 ? "Writing your research summary…" : "Connecting to the model…"}
         </h2>
-        <div className="h-2 w-full rounded-full bg-secondary overflow-hidden relative">
+        <div className="h-2 w-full rounded-full bg-secondary overflow-hidden relative mb-3">
           <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-primary animate-[loadingbar_1.6s_ease-in-out_infinite]" />
         </div>
-        <p className="text-sm text-muted-foreground mt-4">{hint}</p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+          <span>{hint}</span>
+          <span className="tabular-nums">{chars.toLocaleString()} chars</span>
+        </div>
+        {preview && (
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground leading-relaxed max-h-64 overflow-hidden">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-2">
+              Live preview
+            </div>
+            <p className="whitespace-pre-wrap">…{preview}</p>
+          </div>
+        )}
       </div>
+
       <style>{`
         @keyframes loadingbar {
           0% { transform: translateX(-100%); }
