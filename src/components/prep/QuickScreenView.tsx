@@ -21,6 +21,24 @@ const GREEN = "oklch(0.74 0.17 150)";
 const AMBER = "oklch(0.78 0.16 75)";
 const RED = "oklch(0.62 0.22 22)";
 
+/** Render-safety: coerce any model value to a string for React text nodes.
+ *  Objects/arrays/null/undefined become "" so we never throw
+ *  "Objects are not valid as a React child". */
+function txt(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+function num(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
 export function QuickScreenView({
   founder,
   company,
