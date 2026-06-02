@@ -258,7 +258,7 @@ export function QuickScreenView({
                   className="text-5xl font-semibold tabular-nums leading-none"
                   style={{ color: GREEN }}
                 >
-                  {convictionScore}
+                  {num(convictionScore) ?? ""}
                 </div>
                 <div className="mt-1.5 text-[12px] text-muted-foreground">
                   / 100 conviction score
@@ -274,11 +274,11 @@ export function QuickScreenView({
                   <SectionLabel>Category scores</SectionLabel>
                 </div>
                 <div className="mt-3 space-y-2.5">
-                  <ScoreBar label="Team" value={cat.team} />
-                  <ScoreBar label="Market" value={cat.market} />
-                  <ScoreBar label="Traction" value={cat.traction} />
-                  <ScoreBar label="Business" value={cat.business} />
-                  <ScoreBar label="Risk / Legal" value={cat.riskLegal} />
+                  <ScoreBar label="Team" value={num(cat.team)} />
+                  <ScoreBar label="Market" value={num(cat.market)} />
+                  <ScoreBar label="Traction" value={num(cat.traction)} />
+                  <ScoreBar label="Business" value={num(cat.business)} />
+                  <ScoreBar label="Risk / Legal" value={num(cat.riskLegal)} />
                 </div>
               </>
             )}
@@ -286,14 +286,14 @@ export function QuickScreenView({
             {(conviction?.weighting || convictionScore != null) && (
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  {conviction?.weighting || "Weighted"}
+                  {txt(conviction?.weighting) || "Weighted"}
                 </span>
                 {convictionScore != null && (
                   <span
                     className="text-[13px] font-semibold tabular-nums"
                     style={{ color: GREEN }}
                   >
-                    {convictionScore}
+                    {num(convictionScore) ?? ""}
                   </span>
                 )}
               </div>
