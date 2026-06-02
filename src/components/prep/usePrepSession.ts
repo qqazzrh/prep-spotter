@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { buildQueries, type PlannedQuery } from "@/lib/prep/queries";
-import { tavilySearch } from "@/lib/prep/tavily";
+import { tavilySearch } from "@/lib/prep/tavily.functions";
 import {
   generateQuickScreen,
   generateDeepBrief,
   type AnthropicOutcome,
-} from "@/lib/prep/anthropic";
+} from "@/lib/prep/anthropic.functions";
+
 import type {
   FeedItem,
   Mode,

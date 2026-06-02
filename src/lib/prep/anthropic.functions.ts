@@ -1,3 +1,4 @@
+import { createServerFn } from "@tanstack/react-start";
 import type { TavilyResponse, QuickScreen, DeepBrief } from "./types";
 
 const QUICK_SYSTEM =
@@ -31,8 +32,8 @@ export type AnthropicOutcome<T> =
   | { kind: "error"; error: string };
 
 async function callAnthropic(system: string, user: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing VITE_ANTHROPIC_API_KEY");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -40,7 +41,6 @@ async function callAnthropic(system: string, user: string): Promise<string> {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-5",
@@ -64,13 +64,11 @@ async function callAnthropic(system: string, user: string): Promise<string> {
 
 function extractJson(raw: string): unknown | null {
   const trimmed = raw.trim();
-  // strip code fences
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const body = fenced ? fenced[1] : trimmed;
   try {
     return JSON.parse(body);
   } catch {
-    // try to find first { ... last }
     const start = body.indexOf("{");
     const end = body.lastIndexOf("}");
     if (start >= 0 && end > start) {
@@ -84,21 +82,49 @@ function extractJson(raw: string): unknown | null {
   }
 }
 
+export const generateBriefFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      mode: "quick" | "deep";
+      founder: string;
+      company: string;
+      results: Record<string, TavilyResponse>;
+    }) => {
+      if (!data || (data.mode !== "quick" && data.mode !== "deep")) {
+        throw new Error("invalid mode");
+      }
+      return data;
+    }
+  )
+  .handler(async ({ data }) => {
+    try {
+      const system = data.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
+      const raw = await callAnthropic(
+        system,
+        buildUserMessage(data.founder, data.company, data.results)
+      );
+      const parsed = extractJson(raw);
+      if (parsed && typeof parsed === "object") {
+        return { kind: "ok" as const, parsedJson: JSON.stringify(parsed), raw };
+      }
+      return { kind: "raw" as const, raw };
+    } catch (e) {
+      return { kind: "error" as const, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
 export async function generateQuickScreen(
   founder: string,
   company: string,
   results: Record<string, TavilyResponse>
 ): Promise<AnthropicOutcome<QuickScreen>> {
-  try {
-    const raw = await callAnthropic(QUICK_SYSTEM, buildUserMessage(founder, company, results));
-    const parsed = extractJson(raw);
-    if (parsed && typeof parsed === "object") {
-      return { kind: "ok", data: parsed as QuickScreen, raw };
-    }
-    return { kind: "raw", raw };
-  } catch (e) {
-    return { kind: "error", error: e instanceof Error ? e.message : String(e) };
+  const out = await generateBriefFn({
+    data: { mode: "quick", founder, company, results },
+  });
+  if (out.kind === "ok") {
+    return { kind: "ok", data: JSON.parse(out.parsedJson) as QuickScreen, raw: out.raw };
   }
+  return out;
 }
 
 export async function generateDeepBrief(
@@ -106,14 +132,12 @@ export async function generateDeepBrief(
   company: string,
   results: Record<string, TavilyResponse>
 ): Promise<AnthropicOutcome<DeepBrief>> {
-  try {
-    const raw = await callAnthropic(DEEP_SYSTEM, buildUserMessage(founder, company, results));
-    const parsed = extractJson(raw);
-    if (parsed && typeof parsed === "object") {
-      return { kind: "ok", data: parsed as DeepBrief, raw };
-    }
-    return { kind: "raw", raw };
-  } catch (e) {
-    return { kind: "error", error: e instanceof Error ? e.message : String(e) };
+  const out = await generateBriefFn({
+    data: { mode: "deep", founder, company, results },
+  });
+  if (out.kind === "ok") {
+    return { kind: "ok", data: JSON.parse(out.parsedJson) as DeepBrief, raw: out.raw };
   }
+  return out;
 }
+
