@@ -53,12 +53,13 @@ export function DeepBriefView({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
           Research summary
         </div>
-        <p className="text-foreground leading-relaxed text-base md:text-lg">
+        <p className="text-foreground leading-relaxed text-base md:text-lg whitespace-pre-line">
           {summary}
         </p>
+        {data && <SummaryHighlights data={data} />}
       </div>
 
-      {/* Graph: risks by severity + traction confidence */}
+      {/* Graph: risks by severity + traction confidence + competitors + scores */}
       {data && <DiligenceCharts data={data} />}
 
       {/* Expandable, clickable sources per query */}
