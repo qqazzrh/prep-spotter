@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { buildQueries, type PlannedQuery } from "@/lib/prep/queries";
 import { tavilySearch } from "@/lib/prep/tavily.functions";
+import { filterRelevant } from "@/lib/prep/filter";
 import {
   generateQuickScreen,
   generateDeepBrief,
@@ -54,10 +55,11 @@ export function usePrepSession() {
     updateItem(item.id, { status: "searching", error: undefined });
     try {
       const resp = await tavilySearch(item.query);
-      resultsRef.current[item.query] = resp;
+      const filtered = filterRelevant(resp.results || [], founder, company);
+      resultsRef.current[item.query] = { ...resp, results: filtered };
       updateItem(item.id, {
         status: "done",
-        resultCount: resp.results?.length ?? 0,
+        resultCount: filtered.length,
       });
       if (item.pillId) {
         setPills((p) => ({ ...p, [item.pillId as PillId]: true }));
@@ -68,7 +70,7 @@ export function usePrepSession() {
         error: e instanceof Error ? e.message : String(e),
       });
     }
-  }, []);
+  }, [founder, company]);
 
   const retry = useCallback(
     async (id: string) => {
