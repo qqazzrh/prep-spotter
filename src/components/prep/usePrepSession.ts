@@ -126,6 +126,57 @@ export function usePrepSession() {
       setFeed(items);
       setPhase("research");
 
+      // Try the server-side preload first (demo cache for known founder+company).
+      try {
+        const url = `/api/preload?founder=${encodeURIComponent(founder)}&company=${encodeURIComponent(company)}&mode=${m}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const json = (await resp.json()) as {
+            hit: boolean;
+            data?: QuickScreen | DeepBrief;
+            results?: Record<string, TavilyResponse>;
+          };
+          if (json.hit && json.data && json.results) {
+            // Animate the research feed quickly so it still feels real.
+            resultsRef.current = json.results;
+            for (const item of items) {
+              await new Promise((r) => setTimeout(r, 220));
+              const filtered = json.results[item.query]?.results ?? [];
+              updateItem(item.id, { status: "done", resultCount: filtered.length });
+              if (item.pillId) {
+                setPills((p) => ({ ...p, [item.pillId as PillId]: true }));
+              }
+            }
+            // Inject the pre-built brief instantly.
+            setStreamingText("");
+            setBrief(
+              m === "quick"
+                ? {
+                    kind: "quick",
+                    outcome: {
+                      kind: "ok",
+                      data: json.data as QuickScreen,
+                      raw: JSON.stringify(json.data),
+                    },
+                  }
+                : {
+                    kind: "deep",
+                    outcome: {
+                      kind: "ok",
+                      data: json.data as DeepBrief,
+                      raw: JSON.stringify(json.data),
+                    },
+                  }
+            );
+            setPills((p) => ({ ...p, brief: true }));
+            setPhase("result");
+            return;
+          }
+        }
+      } catch {
+        // Fall through to the live path.
+      }
+
       for (const item of items) {
         await runOne(item);
       }
