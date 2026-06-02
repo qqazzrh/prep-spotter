@@ -5,7 +5,7 @@ const QUICK_SYSTEM =
   "You are an experienced venture capitalist and startup research analyst. Given raw web search results about a founder and/or company, create a concise first-pass VC screen. Be direct, skeptical, evidence-based, and avoid hype. Flag unknowns clearly. Produce structured JSON with these exact keys: searchSummary, companyOneLiner, founderCredibility, companyClarity, recentMomentum, fundingSignal, marketCategory, competitors, reasonsToBeInterested, redFlagsOrUnknowns, quickVerdict, theOneQuestion. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY a single JSON object, no prose, no markdown fences.";
 
 const DEEP_SYSTEM =
-  "You are an experienced venture capitalist. Given raw web search results about a founder and/or company, create a deep VC diligence brief. Be skeptical, evidence-based, and practical. Separate verified facts from assumptions. Flag missing information. Keep prose tight — short bullets over long paragraphs. Produce structured JSON with these exact keys: searchSummary, executiveSummary, founderMarketFit, foundingTeam, publishedMaterialAndSocialPresence, companySnapshot, tractionValidation, marketSizing, competitorLandscape, fundingBenchmark, businessModel, risksAndRedFlags, diligenceQuestions, investmentView. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY a single JSON object, no prose, no markdown fences.";
+  "You are an experienced venture capitalist. Given raw web search results about a founder and/or company, create a compact deep VC diligence brief. Be skeptical, evidence-based, and practical. Separate verified facts from assumptions. Flag missing information. Produce valid structured JSON with these exact keys: searchSummary, executiveSummary, founderMarketFit, foundingTeam, publishedMaterialAndSocialPresence, companySnapshot, tractionValidation, marketSizing, competitorLandscape, fundingBenchmark, businessModel, risksAndRedFlags, diligenceQuestions, investmentView. Keep every string short, cap arrays at 3 items, and make sourceUrls arrays contain only relevant URLs. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY one complete JSON object, no prose, no markdown fences.";
 
 function buildUserMessage(
   founder: string,
@@ -33,24 +33,25 @@ export const Route = createFileRoute("/api/brief")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-          return new Response("Missing ANTHROPIC_API_KEY", { status: 500 });
-        }
-        const body = (await request.json()) as {
-          mode: "quick" | "deep";
-          founder: string;
-          company: string;
-          results: Record<string, TavilyResponse>;
-        };
-        if (body.mode !== "quick" && body.mode !== "deep") {
-          return new Response("invalid mode", { status: 400 });
-        }
+        try {
+          const apiKey = process.env.ANTHROPIC_API_KEY;
+          if (!apiKey) {
+            return new Response("Missing ANTHROPIC_API_KEY", { status: 500 });
+          }
+          const body = (await request.json()) as {
+            mode: "quick" | "deep";
+            founder: string;
+            company: string;
+            results: Record<string, TavilyResponse>;
+          };
+          if (body.mode !== "quick" && body.mode !== "deep") {
+            return new Response("invalid mode", { status: 400 });
+          }
 
-        const system = body.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
-        const user = buildUserMessage(body.founder, body.company, body.results, body.mode);
+          const system = body.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
+          const user = buildUserMessage(body.founder, body.company, body.results, body.mode);
 
-        const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+          const upstream = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -59,19 +60,19 @@ export const Route = createFileRoute("/api/brief")({
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5",
-            max_tokens: body.mode === "quick" ? 2000 : 3500,
+            max_tokens: body.mode === "quick" ? 2500 : 7000,
             system,
             stream: true,
             messages: [{ role: "user", content: user }],
           }),
         });
 
-        if (!upstream.ok || !upstream.body) {
-          const text = await upstream.text().catch(() => "");
-          return new Response(`Anthropic ${upstream.status}: ${text.slice(0, 300)}`, {
-            status: 502,
-          });
-        }
+          if (!upstream.ok || !upstream.body) {
+            const text = await upstream.text().catch(() => "");
+            return new Response(`Anthropic ${upstream.status}: ${text.slice(0, 300)}`, {
+              status: 502,
+            });
+          }
 
         // Transform Anthropic SSE → plain text stream of content deltas.
         const reader = upstream.body.getReader();
@@ -116,13 +117,19 @@ export const Route = createFileRoute("/api/brief")({
           },
         });
 
-        return new Response(stream, {
+          return new Response(stream, {
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",
           },
-        });
+          });
+        } catch (e) {
+          console.error(e);
+          return new Response(e instanceof Error ? e.message : "Brief generation failed", {
+            status: 500,
+          });
+        }
       },
     },
   },

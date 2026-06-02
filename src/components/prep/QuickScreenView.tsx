@@ -43,8 +43,8 @@ export function QuickScreenView({
   const headline = verdictHeadline(verdict, data);
   const prose = buildVerdictProse(data, raw);
 
-  const positives = (data?.reasonsToBeInterested || []).slice(0, 4);
-  const cautions = (data?.redFlagsOrUnknowns || []).slice(0, 4);
+  const positives = toList(data?.reasonsToBeInterested).slice(0, 4);
+  const cautions = toList(data?.redFlagsOrUnknowns).slice(0, 4);
   const neutrals = buildNeutralSignals(data);
 
   const summaryRows = buildSummaryRows(data);
@@ -233,10 +233,32 @@ function buildVerdictProse(d: QuickScreen | null, raw?: string): string {
 function buildNeutralSignals(d: QuickScreen | null): string[] {
   if (!d) return [];
   const out: string[] = [];
-  if (d.marketCategory?.summary) out.push(d.marketCategory.summary);
-  if (d.fundingSignal?.stage) out.push(`Stage: ${d.fundingSignal.stage}`);
-  if (d.companyClarity?.isClear === false) out.push("Company description unclear");
+  const marketSummary = summaryOf(d.marketCategory);
+  const funding = d.fundingSignal;
+  const companyClarity = d.companyClarity;
+  if (marketSummary) out.push(marketSummary);
+  if (funding && typeof funding === "object" && "stage" in funding && funding.stage) {
+    out.push(`Stage: ${String(funding.stage)}`);
+  }
+  if (companyClarity && typeof companyClarity === "object" && companyClarity.isClear === false) {
+    out.push("Company description unclear");
+  }
   return out.slice(0, 3);
+}
+
+function summaryOf(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && "summary" in value) {
+    const summary = (value as { summary?: unknown }).summary;
+    return typeof summary === "string" ? summary : "";
+  }
+  return "";
+}
+
+function toList<T>(value: T[] | T | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 /* ---------------- Pills ---------------- */
@@ -273,27 +295,31 @@ function Pill({
 function buildSummaryRows(d: QuickScreen | null) {
   if (!d) return [];
   const rows: { label: string; text: string; Icon: typeof User }[] = [];
-  if (d.founderCredibility?.summary) {
-    rows.push({ label: "Founder", text: d.founderCredibility.summary, Icon: User });
+  const founderSummary = summaryOf(d.founderCredibility);
+  if (founderSummary) {
+    rows.push({ label: "Founder", text: founderSummary, Icon: User });
   }
-  const product = d.companyOneLiner || d.companyClarity?.summary;
+  const product = d.companyOneLiner || summaryOf(d.companyClarity);
   if (product) rows.push({ label: "Product", text: product, Icon: Package });
-  if (d.fundingSignal?.summary) {
-    rows.push({ label: "Funding", text: d.fundingSignal.summary, Icon: DollarSign });
+  const fundingSummary = summaryOf(d.fundingSignal);
+  if (fundingSummary) {
+    rows.push({ label: "Funding", text: fundingSummary, Icon: DollarSign });
   }
-  const tractionParts = (d.recentMomentum || [])
+  const tractionParts = toList(d.recentMomentum)
     .slice(0, 2)
-    .map((m) => `${m.signal}${m.date ? ` (${m.date})` : ""}`);
+    .map((m) => (typeof m === "string" ? m : `${m.signal}${m.date ? ` (${m.date})` : ""}`));
   if (tractionParts.length) {
     rows.push({ label: "Traction", text: tractionParts.join("; "), Icon: TrendingUp });
   }
-  if (d.marketCategory?.summary) {
-    rows.push({ label: "Market", text: d.marketCategory.summary, Icon: Target });
+  const marketSummary = summaryOf(d.marketCategory);
+  if (marketSummary) {
+    rows.push({ label: "Market", text: marketSummary, Icon: Target });
   }
-  if (d.redFlagsOrUnknowns?.length) {
+  const redFlags = toList(d.redFlagsOrUnknowns);
+  if (redFlags.length) {
     rows.push({
       label: "Identity noise",
-      text: d.redFlagsOrUnknowns.slice(0, 2).join("; "),
+      text: redFlags.slice(0, 2).join("; "),
       Icon: AlertTriangle,
     });
   }
