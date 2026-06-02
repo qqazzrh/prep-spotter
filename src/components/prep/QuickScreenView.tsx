@@ -237,9 +237,9 @@ export function QuickScreenView({
                       </span>
                       <div>
                         <span className="font-semibold text-foreground">
-                          {q.topic}:
+                          {txt(q.topic)}:
                         </span>{" "}
-                        <span className="text-foreground/90">{q.question}</span>
+                        <span className="text-foreground/90">{txt(q.question)}</span>
                       </div>
                     </li>
                   ))}
