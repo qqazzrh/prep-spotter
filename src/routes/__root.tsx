@@ -77,9 +77,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Prep — Know if a founder is worth your time" },
+      { title: "FounderLens — Know if a founder is worth your time" },
       { name: "description", content: "Fast VC research: founder + company first-pass screen and deep diligence brief." },
-      { property: "og:title", content: "Prep" },
+      { property: "og:title", content: "FounderLens" },
       { property: "og:description", content: "Know if a founder is worth your time before the meeting." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
