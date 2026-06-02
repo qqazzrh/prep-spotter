@@ -166,6 +166,7 @@ export function usePrepSession() {
     completed,
     total,
     brief,
+    streamingText,
     allResults,
     setFounder,
     setCompany,
