@@ -346,7 +346,7 @@ function getDeepSearchSummary(
   if (searchCount > 0) {
     return `Across ${searchCount} searches, FounderLens found ${sourceCount} unique public sources. The structured summary was not returned by the model — use the expandable sources below as the verified evidence base and treat any missing sections as unknowns until follow-up diligence confirms them.`;
   }
-  if (raw?.trim()) return raw.trim().slice(0, 800);
+  // Never render raw model output as the summary — fall through to the generic message.
   return "Across 0 searches, no public sources were available to synthesize. Try adding both founder and company name, then rerun Deep Diligence.";
 }
 
