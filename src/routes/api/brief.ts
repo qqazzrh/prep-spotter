@@ -33,24 +33,25 @@ export const Route = createFileRoute("/api/brief")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-          return new Response("Missing ANTHROPIC_API_KEY", { status: 500 });
-        }
-        const body = (await request.json()) as {
-          mode: "quick" | "deep";
-          founder: string;
-          company: string;
-          results: Record<string, TavilyResponse>;
-        };
-        if (body.mode !== "quick" && body.mode !== "deep") {
-          return new Response("invalid mode", { status: 400 });
-        }
+        try {
+          const apiKey = process.env.ANTHROPIC_API_KEY;
+          if (!apiKey) {
+            return new Response("Missing ANTHROPIC_API_KEY", { status: 500 });
+          }
+          const body = (await request.json()) as {
+            mode: "quick" | "deep";
+            founder: string;
+            company: string;
+            results: Record<string, TavilyResponse>;
+          };
+          if (body.mode !== "quick" && body.mode !== "deep") {
+            return new Response("invalid mode", { status: 400 });
+          }
 
-        const system = body.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
-        const user = buildUserMessage(body.founder, body.company, body.results, body.mode);
+          const system = body.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
+          const user = buildUserMessage(body.founder, body.company, body.results, body.mode);
 
-        const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+          const upstream = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -66,12 +67,12 @@ export const Route = createFileRoute("/api/brief")({
           }),
         });
 
-        if (!upstream.ok || !upstream.body) {
-          const text = await upstream.text().catch(() => "");
-          return new Response(`Anthropic ${upstream.status}: ${text.slice(0, 300)}`, {
-            status: 502,
-          });
-        }
+          if (!upstream.ok || !upstream.body) {
+            const text = await upstream.text().catch(() => "");
+            return new Response(`Anthropic ${upstream.status}: ${text.slice(0, 300)}`, {
+              status: 502,
+            });
+          }
 
         // Transform Anthropic SSE → plain text stream of content deltas.
         const reader = upstream.body.getReader();
@@ -116,13 +117,19 @@ export const Route = createFileRoute("/api/brief")({
           },
         });
 
-        return new Response(stream, {
+          return new Response(stream, {
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",
           },
-        });
+          });
+        } catch (e) {
+          console.error(e);
+          return new Response(e instanceof Error ? e.message : "Brief generation failed", {
+            status: 500,
+          });
+        }
       },
     },
   },
