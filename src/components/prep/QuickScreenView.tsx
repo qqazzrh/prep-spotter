@@ -703,9 +703,9 @@ function shortLabel(s: string): string {
   return truncate(w.replace(/[.,;:]$/, ""), 22);
 }
 
-function hasAnyScore(o: Record<string, number | undefined> | undefined): boolean {
+function hasAnyScore(o: Record<string, unknown> | undefined): boolean {
   if (!o) return false;
-  return Object.values(o).some((v) => typeof v === "number");
+  return Object.values(o).some((v) => num(v) !== undefined);
 }
 
 function hasAnyMarketSignal(m: NonNullable<QuickScreen["market"]>): boolean {
