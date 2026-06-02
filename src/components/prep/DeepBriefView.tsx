@@ -241,12 +241,145 @@ export function DeepBriefView({
           {copied ? "Copied" : "Copy brief"}
         </button>
       </div>
-
-
-      <SourcesFooter results={results} />
     </div>
   );
 }
+
+const SEVERITY_COLOR: Record<string, string> = {
+  high: "oklch(0.65 0.22 25)",
+  medium: "oklch(0.78 0.16 65)",
+  low: "oklch(0.78 0.14 145)",
+};
+const CONFIDENCE_COLOR: Record<string, string> = {
+  high: "oklch(0.78 0.14 145)",
+  medium: "oklch(0.78 0.16 65)",
+  low: "oklch(0.65 0.22 25)",
+};
+
+function DiligenceCharts({ data }: { data: DeepBrief }) {
+  const riskBuckets = ["high", "medium", "low"];
+  const risks = riskBuckets.map((sev) => ({
+    name: sev,
+    value: (data.risksAndRedFlags || []).filter(
+      (r) => (r.severity || "").toLowerCase() === sev
+    ).length,
+  }));
+  const sigBuckets = ["high", "medium", "low"];
+  const signals = sigBuckets.map((c) => ({
+    name: c,
+    value: (data.tractionValidation?.signals || []).filter(
+      (s) => (s.confidence || "").toLowerCase() === c
+    ).length,
+  }));
+
+  const hasRisks = risks.some((r) => r.value > 0);
+  const hasSignals = signals.some((s) => s.value > 0);
+  if (!hasRisks && !hasSignals) return null;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {hasRisks && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+            Risks by severity
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={risks}>
+                <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" />
+                <YAxis allowDecimals={false} stroke="currentColor" className="text-muted-foreground text-xs" />
+                <Tooltip cursor={{ fill: "oklch(0.3 0 0 / 0.2)" }} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {risks.map((r) => (
+                    <Cell key={r.name} fill={SEVERITY_COLOR[r.name]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+      {hasSignals && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+            Traction signals by confidence
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={signals}>
+                <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" />
+                <YAxis allowDecimals={false} stroke="currentColor" className="text-muted-foreground text-xs" />
+                <Tooltip cursor={{ fill: "oklch(0.3 0 0 / 0.2)" }} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {signals.map((s) => (
+                    <Cell key={s.name} fill={CONFIDENCE_COLOR[s.name]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function domainOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function ExpandableSources({ results }: { results: Record<string, TavilyResponse> }) {
+  const entries = Object.entries(results);
+  if (entries.length === 0) return null;
+  const totalSources = new Set(
+    entries.flatMap(([, r]) => (r.results || []).map((x) => x.url))
+  ).size;
+  return (
+    <div className="mb-8">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+        Sources ({totalSources}) across {entries.length} searches
+      </div>
+      <div className="space-y-2">
+        {entries.map(([query, resp], idx) => (
+          <details
+            key={query}
+            open={idx === 0}
+            className="bg-card border border-border rounded-xl group"
+          >
+            <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground select-none flex items-center justify-between">
+              <span className="truncate">{query}</span>
+              <span className="text-xs text-muted-foreground ml-3 shrink-0">
+                {(resp.results || []).length} results
+              </span>
+            </summary>
+            <ul className="px-5 pb-4 space-y-2">
+              {(resp.results || []).map((r, i) => (
+                <li key={i} className="text-sm">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[oklch(0.85_0.14_220)] hover:underline break-words"
+                  >
+                    {r.title || r.url}
+                  </a>{" "}
+                  <span className="text-xs text-muted-foreground">
+                    · {domainOf(r.url)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
