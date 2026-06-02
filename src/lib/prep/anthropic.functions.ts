@@ -123,6 +123,10 @@ function hasArray(value: Record<string, unknown>, key: string) {
   return Array.isArray(value[key]);
 }
 
+function childHasArray(value: Record<string, unknown>, child: string, key: string) {
+  return isObject(value[child]) && Array.isArray(value[child][key]);
+}
+
 function isDeepBriefShape(value: unknown): value is DeepBrief {
   if (!isObject(value)) return false;
   return (
@@ -137,7 +141,14 @@ function isDeepBriefShape(value: unknown): value is DeepBrief {
     hasObject(value, "businessModel") &&
     hasObject(value, "investmentView") &&
     hasArray(value, "risksAndRedFlags") &&
-    hasArray(value, "diligenceQuestions")
+    hasArray(value, "diligenceQuestions") &&
+    childHasArray(value, "foundingTeam", "knownTeamMembers") &&
+    childHasArray(value, "foundingTeam", "teamGaps") &&
+    childHasArray(value, "publishedMaterialAndSocialPresence", "notableMaterials") &&
+    childHasArray(value, "tractionValidation", "signals") &&
+    childHasArray(value, "competitorLandscape", "competitors") &&
+    childHasArray(value, "investmentView", "topReasonsToInvest") &&
+    childHasArray(value, "investmentView", "topReasonsToPause")
   );
 }
 
