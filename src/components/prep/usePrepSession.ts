@@ -80,6 +80,7 @@ export function usePrepSession() {
   const generateBrief = useCallback(
     async (m: Mode) => {
       setBrief({ kind: "loading" });
+      setPhase("result");
       const fn = m === "quick" ? generateQuickScreen : generateDeepBrief;
       const outcome = await fn(founder, company, resultsRef.current);
       setBrief(
@@ -88,10 +89,10 @@ export function usePrepSession() {
           : { kind: "deep", outcome: outcome as AnthropicOutcome<DeepBrief> }
       );
       setPills((p) => ({ ...p, brief: true }));
-      setPhase("result");
     },
     [founder, company]
   );
+
 
   const start = useCallback(
     async (m: Mode) => {
