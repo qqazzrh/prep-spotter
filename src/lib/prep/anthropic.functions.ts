@@ -111,6 +111,36 @@ function extractJson(raw: string): unknown | null {
   }
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasObject(value: Record<string, unknown>, key: string) {
+  return isObject(value[key]);
+}
+
+function hasArray(value: Record<string, unknown>, key: string) {
+  return Array.isArray(value[key]);
+}
+
+function isDeepBriefShape(value: unknown): value is DeepBrief {
+  if (!isObject(value)) return false;
+  return (
+    hasObject(value, "executiveSummary") &&
+    hasObject(value, "founderMarketFit") &&
+    hasObject(value, "foundingTeam") &&
+    hasObject(value, "companySnapshot") &&
+    hasObject(value, "tractionValidation") &&
+    hasObject(value, "marketSizing") &&
+    hasObject(value, "competitorLandscape") &&
+    hasObject(value, "fundingBenchmark") &&
+    hasObject(value, "businessModel") &&
+    hasObject(value, "investmentView") &&
+    hasArray(value, "risksAndRedFlags") &&
+    hasArray(value, "diligenceQuestions")
+  );
+}
+
 export const generateBriefFn = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
@@ -200,7 +230,7 @@ export async function generateDeepBrief(
   const out = await streamBrief("deep", founder, company, results, onDelta);
   if (out.kind === "error") return out;
   const parsed = extractJson(out.raw);
-  if (parsed && typeof parsed === "object") {
+  if (isDeepBriefShape(parsed)) {
     return { kind: "ok", data: parsed as DeepBrief, raw: out.raw };
   }
   return { kind: "raw", raw: out.raw };
