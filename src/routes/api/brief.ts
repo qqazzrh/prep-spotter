@@ -5,7 +5,7 @@ const QUICK_SYSTEM =
   "You are an experienced venture capitalist and startup research analyst. Given raw web search results about a founder and/or company, create a concise first-pass VC screen. Be direct, skeptical, evidence-based, and avoid hype. Flag unknowns clearly. Produce structured JSON with these exact keys: searchSummary, companyOneLiner, founderCredibility, companyClarity, recentMomentum, fundingSignal, marketCategory, competitors, reasonsToBeInterested, redFlagsOrUnknowns, quickVerdict, theOneQuestion. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY a single JSON object, no prose, no markdown fences.";
 
 const DEEP_SYSTEM =
-  "You are an experienced venture capitalist. Given raw web search results about a founder and/or company, create a deep VC diligence brief. Be skeptical, evidence-based, and practical. Separate verified facts from assumptions. Flag missing information. Keep prose tight — short bullets over long paragraphs. Produce structured JSON with these exact keys: searchSummary, executiveSummary, founderMarketFit, foundingTeam, publishedMaterialAndSocialPresence, companySnapshot, tractionValidation, marketSizing, competitorLandscape, fundingBenchmark, businessModel, risksAndRedFlags, diligenceQuestions, investmentView. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY a single JSON object, no prose, no markdown fences.";
+  "You are an experienced venture capitalist. Given raw web search results about a founder and/or company, create a compact deep VC diligence brief. Be skeptical, evidence-based, and practical. Separate verified facts from assumptions. Flag missing information. Produce valid structured JSON with these exact keys: searchSummary, executiveSummary, founderMarketFit, foundingTeam, publishedMaterialAndSocialPresence, companySnapshot, tractionValidation, marketSizing, competitorLandscape, fundingBenchmark, businessModel, risksAndRedFlags, diligenceQuestions, investmentView. Keep every string short, cap arrays at 3 items, and make sourceUrls arrays contain only relevant URLs. The 'searchSummary' field must be a single short paragraph (2-4 sentences, ~60 words) starting with 'Across N searches' that synthesizes what was actually found. Respond with ONLY one complete JSON object, no prose, no markdown fences.";
 
 function buildUserMessage(
   founder: string,
@@ -60,7 +60,7 @@ export const Route = createFileRoute("/api/brief")({
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5",
-            max_tokens: body.mode === "quick" ? 2000 : 3500,
+            max_tokens: body.mode === "quick" ? 2500 : 7000,
             system,
             stream: true,
             messages: [{ role: "user", content: user }],
