@@ -69,7 +69,7 @@ function PrepApp() {
 
   // result
   if (s.brief.kind === "loading") {
-    return <BriefLoading mode={s.mode} />;
+    return <BriefLoading mode={s.mode} streamingText={s.streamingText} />;
   }
 
   if (s.brief.kind === "quick") {
