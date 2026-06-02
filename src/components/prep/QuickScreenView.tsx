@@ -481,12 +481,15 @@ function ScoreBar({ label, value }: { label: string; value?: number }) {
 
 function MetaPills({ meta }: { meta: NonNullable<QuickScreen["meta"]> }) {
   const items: { label: string; danger?: boolean; flame?: boolean }[] = [];
-  if (meta.round) items.push({ label: meta.round });
-  if (meta.valuation) items.push({ label: meta.valuation });
-  if (meta.sector) items.push({ label: meta.sector });
-  if (meta.founded) items.push({ label: meta.founded });
-  if (meta.competingTermSheets)
-    items.push({ label: meta.competingTermSheets, danger: true, flame: true });
+  const push = (v: unknown, opts: { danger?: boolean; flame?: boolean } = {}) => {
+    const s = txt(v);
+    if (s) items.push({ label: s, ...opts });
+  };
+  push(meta.round);
+  push(meta.valuation);
+  push(meta.sector);
+  push(meta.founded);
+  push(meta.competingTermSheets, { danger: true, flame: true });
   if (items.length === 0) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-2">
