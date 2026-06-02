@@ -1,6 +1,6 @@
 import type { DeepBrief, TavilyResponse } from "@/lib/prep/types";
 import { VerdictBadge } from "./VerdictBadge";
-import { SourcesFooter } from "./SourcesFooter";
+
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
