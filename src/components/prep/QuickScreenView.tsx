@@ -67,7 +67,7 @@ export function QuickScreenView({
   const subject =
     [
       titleCase(company) || company || "",
-      data?.meta?.round || "",
+      txt(data?.meta?.round),
     ]
       .filter(Boolean)
       .join(" · ") || titleCase(founder) || "—";
