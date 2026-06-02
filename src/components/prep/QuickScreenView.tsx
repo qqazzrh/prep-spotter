@@ -100,8 +100,20 @@ export function QuickScreenView({
     );
   }
 
-  const subject2Placeholder = null;
-  void subject2Placeholder;
+  const subject =
+    [
+      titleCase(company) || company || "",
+      txt(data?.meta?.round),
+    ]
+      .filter(Boolean)
+      .join(" · ") || titleCase(founder) || "—";
+
+  const verdictTag = txt(data?.verdictLabel || derivedVerdictLabel(txt(data?.quickVerdict))).toUpperCase() || "UNCLEAR";
+  const tone = verdictTone(verdictTag);
+
+  const headline =
+    txt(data?.verdictHeadline) ||
+    derivedHeadline(txt(data?.quickVerdict), txt(data?.companyOneLiner));
 
   const convictionSummary =
     txt(data?.convictionSummary) ||
