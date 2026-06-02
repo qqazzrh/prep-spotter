@@ -133,7 +133,7 @@ export function QuickScreenView({
                   {founderName || "—"}
                 </div>
                 <div className="text-muted-foreground text-[13px]">
-                  {founderProfile?.title || ""}
+                  {txt(founderProfile?.title)}
                 </div>
               </div>
             </div>
@@ -147,7 +147,7 @@ export function QuickScreenView({
                       style={{ background: GREEN }}
                       aria-hidden
                     />
-                    <span>{c}</span>
+                    <span>{txt(c)}</span>
                   </li>
                 ))}
               </ul>
@@ -155,27 +155,27 @@ export function QuickScreenView({
 
             {hasAnyScore(founderScores) && (
               <div className="mt-5 space-y-2.5">
-                <ScoreBar label="Founder–Mkt Fit" value={founderScores.founderMarketFit} />
-                <ScoreBar label="Domain Expertise" value={founderScores.domainExpertise} />
-                <ScoreBar label="Sales / GTM" value={founderScores.salesGtm} />
-                <ScoreBar label="Technical Depth" value={founderScores.technicalDepth} />
-                <ScoreBar label="Resilience / Grit" value={founderScores.resilience} />
+                <ScoreBar label="Founder–Mkt Fit" value={num(founderScores.founderMarketFit)} />
+                <ScoreBar label="Domain Expertise" value={num(founderScores.domainExpertise)} />
+                <ScoreBar label="Sales / GTM" value={num(founderScores.salesGtm)} />
+                <ScoreBar label="Technical Depth" value={num(founderScores.technicalDepth)} />
+                <ScoreBar label="Resilience / Grit" value={num(founderScores.resilience)} />
               </div>
             )}
 
             {data?.coFounder && (
               <div className="mt-5 border border-border rounded-lg p-3 flex items-center gap-3">
                 <Avatar
-                  initials={data.coFounder.initials || initialsOf(data.coFounder.name || "")}
+                  initials={data.coFounder.initials || initialsOf(txt(data.coFounder.name))}
                   color="muted"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-foreground text-[13px] font-medium truncate">
-                    {data.coFounder.name}
+                    {txt(data.coFounder.name)}
                   </div>
                   <div className="text-muted-foreground text-[12px] truncate">
-                    {data.coFounder.title}
-                    {data.coFounder.credentials ? ` · ${data.coFounder.credentials}` : ""}
+                    {txt(data.coFounder.title)}
+                    {data.coFounder.credentials ? ` · ${txt(data.coFounder.credentials)}` : ""}
                   </div>
                 </div>
                 {data.coFounder.fit && (
@@ -197,7 +197,7 @@ export function QuickScreenView({
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" style={{ color: AMBER }} />
                 <div>
                   <div className="text-[12px] font-semibold" style={{ color: AMBER }}>
-                    {data.criticalGap.title}
+                    {txt(data.criticalGap.title)}
                   </div>
                   <div className="text-[12px] text-foreground/80">
                     {data.criticalGap.note}
