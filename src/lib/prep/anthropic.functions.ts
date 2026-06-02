@@ -105,7 +105,7 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       );
       const parsed = extractJson(raw);
       if (parsed && typeof parsed === "object") {
-        return { kind: "ok" as const, data: parsed as Record<string, unknown>, raw };
+        return { kind: "ok" as const, parsedJson: JSON.stringify(parsed), raw };
       }
       return { kind: "raw" as const, raw };
     } catch (e) {
@@ -113,15 +113,18 @@ export const generateBriefFn = createServerFn({ method: "POST" })
     }
   });
 
-
 export async function generateQuickScreen(
   founder: string,
   company: string,
   results: Record<string, TavilyResponse>
 ): Promise<AnthropicOutcome<QuickScreen>> {
-  return (await generateBriefFn({
+  const out = await generateBriefFn({
     data: { mode: "quick", founder, company, results },
-  })) as AnthropicOutcome<QuickScreen>;
+  });
+  if (out.kind === "ok") {
+    return { kind: "ok", data: JSON.parse(out.parsedJson) as QuickScreen, raw: out.raw };
+  }
+  return out;
 }
 
 export async function generateDeepBrief(
@@ -129,7 +132,12 @@ export async function generateDeepBrief(
   company: string,
   results: Record<string, TavilyResponse>
 ): Promise<AnthropicOutcome<DeepBrief>> {
-  return (await generateBriefFn({
+  const out = await generateBriefFn({
     data: { mode: "deep", founder, company, results },
-  })) as AnthropicOutcome<DeepBrief>;
+  });
+  if (out.kind === "ok") {
+    return { kind: "ok", data: JSON.parse(out.parsedJson) as DeepBrief, raw: out.raw };
+  }
+  return out;
 }
+
