@@ -215,14 +215,14 @@ export function QuickScreenView({
               className="text-[11px] uppercase tracking-[0.14em] font-bold"
               style={{ color: tone.color }}
             >
-              {verdictTag}
+              {txt(verdictTag)}
             </div>
             <h2 className="mt-1 text-2xl font-semibold text-foreground tracking-tight">
-              {headline}
+              {txt(headline)}
             </h2>
             {convictionSummary && (
               <p className="mt-3 italic text-foreground/90">
-                &ldquo;{convictionSummary}&rdquo;
+                &ldquo;{txt(convictionSummary)}&rdquo;
               </p>
             )}
 
