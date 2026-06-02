@@ -53,7 +53,11 @@ export function DeepBriefView({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
           Research summary
         </div>
-        <p className="text-foreground leading-relaxed text-base md:text-lg whitespace-pre-line">
+        {data && <Top3Takeaways data={data} />}
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 mt-5">
+          Full synthesis
+        </div>
+        <p className="text-foreground leading-relaxed text-sm whitespace-pre-line">
           {summary}
         </p>
         {data && <SummaryHighlights data={data} />}
@@ -344,6 +348,70 @@ function getDeepSearchSummary(
   }
   if (raw?.trim()) return raw.trim().slice(0, 800);
   return "Across 0 searches, no public sources were available to synthesize. Try adding both founder and company name, then rerun Deep Diligence.";
+}
+
+function Top3Takeaways({ data }: { data: DeepBrief }) {
+  const items: { label: string; text: string }[] = [];
+
+  const rec = data.investmentView?.recommendation?.trim();
+  const reason = data.investmentView?.reasoning?.trim();
+  if (rec || reason) {
+    items.push({
+      label: "Verdict",
+      text: rec ? `${rec}${reason ? ` — ${reason}` : ""}` : reason!,
+    });
+  }
+
+  const topInvest = data.investmentView?.topReasonsToInvest?.[0];
+  if (topInvest) items.push({ label: "Strongest reason to invest", text: topInvest });
+
+  const topSignal = data.tractionValidation?.signals?.[0];
+  if (topSignal?.signal) {
+    items.push({
+      label: "Traction signal",
+      text: `${topSignal.signal}${topSignal.evidence ? ` — ${topSignal.evidence}` : ""}`,
+    });
+  }
+
+  const highRisk = data.risksAndRedFlags?.find(
+    (r) => (r.severity || "").toLowerCase() === "high"
+  ) || data.risksAndRedFlags?.[0];
+  if (highRisk?.risk) {
+    items.push({
+      label: `Top risk${highRisk.severity ? ` (${highRisk.severity})` : ""}`,
+      text: highRisk.risk,
+    });
+  }
+
+  const topPause = data.investmentView?.topReasonsToPause?.[0];
+  if (topPause) items.push({ label: "Reason to pause", text: topPause });
+
+  const fmf = data.founderMarketFit?.summary?.trim();
+  if (fmf) items.push({ label: "Founder–market fit", text: fmf });
+
+  const top3 = items.slice(0, 3);
+  if (!top3.length) return null;
+
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+        Top 3 things to know
+      </div>
+      <ol className="space-y-3">
+        {top3.map((t, i) => (
+          <li key={i} className="flex gap-3">
+            <span className="flex-none w-6 h-6 rounded-full bg-[oklch(0.85_0.14_220)] text-[oklch(0.2_0.02_240)] text-xs font-bold flex items-center justify-center">
+              {i + 1}
+            </span>
+            <div className="text-sm leading-relaxed">
+              <span className="font-semibold text-foreground">{t.label}:</span>{" "}
+              <span className="text-foreground">{t.text}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 function SummaryHighlights({ data }: { data: DeepBrief }) {
