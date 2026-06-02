@@ -635,6 +635,8 @@ function SignalRow({
 }) {
   const colorMap = { good: GREEN, moderate: AMBER, critical: RED } as const;
   const c = colorMap[kind];
+  const safeLabel = txt(label);
+  const safeText = txt(text);
   return (
     <li className="grid grid-cols-[150px_1fr] gap-3 items-start">
       <span
@@ -644,11 +646,11 @@ function SignalRow({
           color: c,
           background: `color-mix(in oklab, ${c} 12%, transparent)`,
         }}
-        title={label}
+        title={safeLabel}
       >
-        {truncate(label, 22)}
+        {truncate(safeLabel, 22)}
       </span>
-      <span className="text-foreground/90 text-[13px]">{text}</span>
+      <span className="text-foreground/90 text-[13px]">{safeText}</span>
     </li>
   );
 }
