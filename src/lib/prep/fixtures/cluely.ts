@@ -184,7 +184,7 @@ export const CLUELY_QUICK: QuickScreen = {
 // Tavily-shaped per-query results. Keys match buildQueries() output for
 // founder="Roy Lee" company="Cluely" in mode="quick".
 export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
-  'Roy Lee Cluely founder background': {
+  "Roy Lee Cluely founder background": {
     query: "Roy Lee Cluely founder background",
     answer:
       "Roy Lee is the 21-year-old co-founder and CEO of Cluely. He was suspended from Columbia University in 2025 after releasing Interview Coder, then launched Cluely as an AI real-time assistant.",
@@ -207,15 +207,36 @@ export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
         title: "Roy Lee on the controversy and the funding round",
         url: "https://techcrunch.com/2025/06/20/a16z-leads-15m-series-a-in-cluely/",
         content:
-          "In a TechCrunch interview, Lee defended his marketing strategy and discussed the a16z-led $15M Series A. He later admitted in a follow-up that some revenue numbers shared with reporters were exaggerated.",
+          "In a TechCrunch interview, Lee defended his marketing strategy and discussed the a16z-led $15M Series A.",
         score: 0.92,
       },
     ],
   },
-  'Cluely company product news': {
-    query: "Cluely company product news",
+  "Roy Lee LinkedIn prior companies exit acquisition IPO startup": {
+    query: "Roy Lee LinkedIn prior companies exit acquisition IPO startup",
     answer:
-      "Cluely makes a desktop overlay that listens to meetings and reads the user's screen, providing real-time AI suggestions. It is marketed as a 'cheat on everything' tool.",
+      "Roy Lee has no prior exits. Before Cluely he shipped Interview Coder and two smaller consumer AI tools while at Columbia.",
+    results: [
+      {
+        title: "Roy Lee — LinkedIn",
+        url: "https://www.linkedin.com/in/roylee-cluely",
+        content:
+          "Co-founder & CEO at Cluely. Previously Computer Science at Columbia University. Built Interview Coder (2025), suspended same year. No prior venture-backed roles.",
+        score: 0.81,
+      },
+      {
+        title: "Interview Coder: the project that got Roy Lee suspended",
+        url: "https://news.ycombinator.com/item?id=interview-coder",
+        content:
+          "Interview Coder was a Chrome extension that piped LeetCode-style questions through GPT in real time. It went viral on HN and got Lee suspended within weeks.",
+        score: 0.78,
+      },
+    ],
+  },
+  "Cluely startup what does it do product customers": {
+    query: "Cluely startup what does it do product customers",
+    answer:
+      "Cluely makes a desktop overlay that listens to meetings and reads the user's screen, providing real-time AI suggestions. It is marketed as a 'cheat on everything' tool for interviews, exams, and sales calls.",
     results: [
       {
         title: "Cluely launches real-time AI overlay for interviews and meetings",
@@ -228,15 +249,15 @@ export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
         title: "How Cluely's overlay actually works",
         url: "https://www.theverge.com/2025/5/15/cluely-viral-marketing",
         content:
-          "Under the hood Cluely combines GPT-5 reasoning with screen OCR and microphone capture. The overlay is positioned to be invisible to Zoom and Google Meet's screen sharing.",
+          "Under the hood Cluely combines a frontier LLM with screen OCR and microphone capture. The overlay is positioned to be invisible to Zoom and Google Meet's screen sharing.",
         score: 0.88,
       },
     ],
   },
-  'Cluely recent traction signals': {
-    query: "Cluely recent traction signals",
+  "Cluely recent news funding product launch hiring": {
+    query: "Cluely recent news funding product launch hiring",
     answer:
-      "Cluely's marketing has driven 1B+ short-form video views and the founder claims $7M ARR, but third-party traffic data shows a roughly 50% decline in late 2025.",
+      "Cluely closed a $15M Series A led by a16z in June 2025 and scaled to a 50-person part-time content team. Reports of a ~50% traffic drop appeared in Q4 2025.",
     results: [
       {
         title: "Cluely traffic falls ~50% as detection tools emerge",
@@ -254,8 +275,8 @@ export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
       },
     ],
   },
-  'Cluely funding investors': {
-    query: "Cluely funding investors",
+  "Cluely funding investors valuation seed series A": {
+    query: "Cluely funding investors valuation seed series A",
     answer:
       "Cluely raised a $5.3M seed in April 2025 and a $15M Series A led by Andreessen Horowitz in June 2025 at a reported $120M post-money valuation.",
     results: [
@@ -275,29 +296,8 @@ export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
       },
     ],
   },
-  'Cluely red flags controversy': {
-    query: "Cluely red flags controversy",
-    answer:
-      "Roy Lee admitted in a March 2026 interview to exaggerating Cluely's revenue numbers to reporters. The company has also drawn ethical criticism for marketing itself as a cheating tool.",
-    results: [
-      {
-        title: "Cluely founder admits exaggerating revenue numbers",
-        url: "https://techcrunch.com/2026/03/12/cluely-revenue-admission/",
-        content:
-          "Roy Lee admitted in a TechCrunch follow-up that the $7M ARR figure he previously shared was inflated and that real net revenue was 'meaningfully lower'. a16z declined to comment.",
-        score: 0.97,
-      },
-      {
-        title: "Universities and enterprises move to block Cluely",
-        url: "https://www.wsj.com/articles/cluely-enterprise-bans-2025",
-        content:
-          "Several Fortune 500 IT teams have begun blocking the Cluely overlay at the endpoint, and university proctoring vendors are integrating Truely's detection signal.",
-        score: 0.86,
-      },
-    ],
-  },
-  'Cluely market competitors': {
-    query: "Cluely market competitors",
+  "Cluely competitors alternatives market category": {
+    query: "Cluely competitors alternatives market category",
     answer:
       "Cluely competes with detection tools (Truely, Proctaroo) and with broader real-time meeting copilots (Granola, Fellow, Read AI, Otter, Fireflies).",
     results: [
@@ -314,6 +314,27 @@ export const CLUELY_RESULTS: Record<string, TavilyResponse> = {
         content:
           "Granola, Fellow and Read AI each raised significant rounds in 2025 with cleaner enterprise positioning and direct integrations into Zoom, Google Meet and Microsoft Teams.",
         score: 0.82,
+      },
+    ],
+  },
+  "Roy Lee Cluely controversy lawsuit fraud criticism": {
+    query: "Roy Lee Cluely controversy lawsuit fraud criticism",
+    answer:
+      "Roy Lee admitted in a March 2026 interview to exaggerating Cluely's revenue numbers to reporters. The company has also drawn ethical criticism for marketing itself as a cheating tool.",
+    results: [
+      {
+        title: "Cluely founder admits exaggerating revenue numbers",
+        url: "https://techcrunch.com/2026/03/12/cluely-revenue-admission/",
+        content:
+          "Roy Lee admitted in a TechCrunch follow-up that the $7M ARR figure he previously shared was inflated and that real net revenue was 'meaningfully lower'. a16z declined to comment.",
+        score: 0.97,
+      },
+      {
+        title: "Universities and enterprises move to block Cluely",
+        url: "https://www.wsj.com/articles/cluely-enterprise-bans-2025",
+        content:
+          "Several Fortune 500 IT teams have begun blocking the Cluely overlay at the endpoint, and university proctoring vendors are integrating Truely's detection signal.",
+        score: 0.86,
       },
     ],
   },
