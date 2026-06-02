@@ -687,14 +687,21 @@ function verdictTone(label: string): { color: string } {
 function deriveFounderCreds(d: QuickScreen | null): string[] {
   const out: string[] = [];
   const fc = d?.founderCredibility?.signals;
-  if (Array.isArray(fc)) out.push(...fc.slice(0, 5));
+  if (Array.isArray(fc)) {
+    for (const x of fc.slice(0, 5)) {
+      const s = txt(x);
+      if (s) out.push(s);
+    }
+  }
   return out;
 }
 
 function deriveGreenSignals(d: QuickScreen | null): { label: string; text: string }[] {
   const out: { label: string; text: string }[] = [];
   for (const r of d?.reasonsToBeInterested || []) {
-    out.push({ label: shortLabel(r), text: r });
+    const s = txt(r);
+    if (!s) continue;
+    out.push({ label: shortLabel(s), text: s });
   }
   return out.slice(0, 6);
 }
@@ -702,14 +709,17 @@ function deriveGreenSignals(d: QuickScreen | null): { label: string; text: strin
 function deriveRiskSignals(d: QuickScreen | null): { label: string; text: string; severity?: string }[] {
   const out: { label: string; text: string; severity?: string }[] = [];
   for (const r of d?.redFlagsOrUnknowns || []) {
-    out.push({ label: shortLabel(r), text: r, severity: "moderate" });
+    const s = txt(r);
+    if (!s) continue;
+    out.push({ label: shortLabel(s), text: s, severity: "moderate" });
   }
   return out.slice(0, 6);
 }
 
 function deriveQuestions(d: QuickScreen | null): { topic: string; question: string }[] {
-  if (!d?.theOneQuestion) return [];
-  return [{ topic: "Key question", question: d.theOneQuestion }];
+  const q = txt(d?.theOneQuestion);
+  if (!q) return [];
+  return [{ topic: "Key question", question: q }];
 }
 
 function shortLabel(s: string): string {
