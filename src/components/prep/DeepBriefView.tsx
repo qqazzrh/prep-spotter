@@ -251,6 +251,35 @@ const CONFIDENCE_COLOR: Record<string, string> = {
   low: "oklch(0.65 0.22 25)",
 };
 
+function getDeepSearchSummary(
+  data: DeepBrief | null,
+  results: Record<string, TavilyResponse>,
+  raw?: string
+) {
+  if (data?.searchSummary?.trim()) return data.searchSummary.trim();
+
+  const entries = Object.entries(results);
+  const searchCount = entries.length;
+  const sourceCount = new Set(
+    entries.flatMap(([, response]) => (response.results || []).map((result) => result.url))
+  ).size;
+  const queryLabels = entries
+    .slice(0, 3)
+    .map(([query]) => query)
+    .filter(Boolean);
+
+  if (searchCount > 0) {
+    const scope = queryLabels.length ? ` covering ${queryLabels.join(", ")}` : "";
+    return `Across ${searchCount} searches${scope}, FounderLens found ${sourceCount} unique public sources. The structured summary was not returned by the model, so use the expandable sources below as the verified evidence base and treat any missing sections as unknowns until follow-up diligence confirms them.`;
+  }
+
+  if (raw?.trim()) {
+    return raw.trim().slice(0, 500);
+  }
+
+  return "Across 0 searches, no public sources were available to synthesize. Try adding both founder and company name, then rerun Deep Diligence.";
+}
+
 function DiligenceCharts({ data }: { data: DeepBrief }) {
   const riskBuckets = ["high", "medium", "low"];
   const risks = riskBuckets.map((sev) => ({
