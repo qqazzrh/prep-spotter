@@ -1,7 +1,17 @@
 import type { TavilyResult } from "./types";
 
-function relevanceTokens(name: string): string[] {
-  return name.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+function nameVariants(name: string): string[] {
+  if (!name.trim()) return [];
+  const base = name.toLowerCase();
+  // "NuraCare" → "nura care" so we match both spellings in external sources
+  const spaced = base.replace(/([a-z])([A-Z])/g, "$1 $2");
+  // Individual words only if long enough to be distinctive (5+ chars)
+  const longWords = spaced.split(/\s+/).filter((w) => w.length >= 5);
+  return [...new Set([base, spaced, ...longWords])];
+}
+
+function hits(text: string, variants: string[]): boolean {
+  return variants.length === 0 || variants.some((v) => text.includes(v));
 }
 
 export function filterRelevant(
@@ -9,17 +19,21 @@ export function filterRelevant(
   founder: string,
   company: string
 ): TavilyResult[] {
-  const founderTokens = relevanceTokens(founder);
-  const companyTokens = relevanceTokens(company);
+  const founderV = nameVariants(founder);
+  const companyV = nameVariants(company);
 
-  if (founderTokens.length === 0 && companyTokens.length === 0) return results;
+  if (founderV.length === 0 && companyV.length === 0) return results;
 
   const relevant = results.filter((r) => {
-    const text = `${r.title} ${r.content}`.toLowerCase();
-    // If a name was provided, the result must mention it; if not provided, skip that check
-    const matchesFounder = founderTokens.length === 0 || founderTokens.some((t) => text.includes(t));
-    const matchesCompany = companyTokens.length === 0 || companyTokens.some((t) => text.includes(t));
-    return matchesFounder && matchesCompany;
+    const title = r.title.toLowerCase();
+    const full = `${r.title} ${r.content}`.toLowerCase();
+
+    // At least one name must appear in the title (not just buried in scraped content)
+    const titleMatch = hits(title, founderV) || hits(title, companyV);
+    // Both names must appear somewhere in the full text
+    const fullMatch = hits(full, founderV) && hits(full, companyV);
+
+    return titleMatch && fullMatch;
   });
 
   return relevant.length > 0 ? relevant : results;
