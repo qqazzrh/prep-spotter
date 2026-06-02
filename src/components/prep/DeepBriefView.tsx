@@ -257,28 +257,143 @@ function getDeepSearchSummary(
   results: Record<string, TavilyResponse>,
   raw?: string
 ) {
-  if (data?.searchSummary?.trim()) return data.searchSummary.trim();
-
   const entries = Object.entries(results);
   const searchCount = entries.length;
   const sourceCount = new Set(
     entries.flatMap(([, response]) => (response.results || []).map((result) => result.url))
   ).size;
-  const queryLabels = entries
-    .slice(0, 3)
-    .map(([query]) => query)
-    .filter(Boolean);
+
+  if (data) {
+    const lines: string[] = [];
+    const exec = data.executiveSummary?.summary?.trim();
+    const provided = data.searchSummary?.trim();
+    if (provided) lines.push(provided);
+    else if (exec) lines.push(exec);
+
+    const fmf = data.founderMarketFit?.summary?.trim();
+    if (fmf) lines.push(`Founder–market fit: ${fmf}`);
+
+    const team = data.foundingTeam?.summary?.trim();
+    const teamCount = data.foundingTeam?.knownTeamMembers?.length || 0;
+    if (team || teamCount) {
+      lines.push(
+        `Team: ${team || "n/a"}${teamCount ? ` (${teamCount} known members)` : ""}.`
+      );
+    }
+
+    const snap = data.companySnapshot;
+    if (snap?.whatTheyDo) {
+      lines.push(
+        `Company: ${snap.whatTheyDo}${snap.customer ? ` Customer: ${snap.customer}.` : ""}${snap.problem ? ` Problem: ${snap.problem}.` : ""}`
+      );
+    }
+
+    const traction = data.tractionValidation?.summary?.trim();
+    const signalsN = data.tractionValidation?.signals?.length || 0;
+    if (traction || signalsN) {
+      lines.push(`Traction: ${traction || "n/a"}${signalsN ? ` (${signalsN} signals)` : ""}.`);
+    }
+
+    const m = data.marketSizing;
+    if (m && (m.tam || m.sam || m.som)) {
+      lines.push(
+        `Market — TAM: ${m.tam || "?"} · SAM: ${m.sam || "?"} · SOM: ${m.som || "?"}${m.isVentureScale ? ` · venture-scale: ${m.isVentureScale}` : ""}.`
+      );
+    }
+
+    const comp = data.competitorLandscape;
+    const compN = comp?.competitors?.length || 0;
+    if (comp?.summary || compN) {
+      lines.push(
+        `Competition: ${comp?.summary || "n/a"}${compN ? ` (${compN} competitors mapped)` : ""}${comp?.moatPotential ? ` · moat: ${comp.moatPotential}` : ""}.`
+      );
+    }
+
+    const fb = data.fundingBenchmark;
+    if (fb?.companyFunding || fb?.benchmarkAgainstSimilarCompanies) {
+      lines.push(
+        `Funding: ${fb.companyFunding || "n/a"}${fb.benchmarkAgainstSimilarCompanies ? ` — benchmark: ${fb.benchmarkAgainstSimilarCompanies}` : ""}.`
+      );
+    }
+
+    const bm = data.businessModel;
+    if (bm?.summary || bm?.pricingModel) {
+      lines.push(`Business model: ${bm.summary || bm.pricingModel || ""}.`);
+    }
+
+    const risksN = data.risksAndRedFlags?.length || 0;
+    if (risksN) {
+      const high = data.risksAndRedFlags!.filter((r) => (r.severity || "").toLowerCase() === "high").length;
+      lines.push(`Risks: ${risksN} flagged${high ? `, ${high} high-severity` : ""}.`);
+    }
+
+    const iv = data.investmentView;
+    if (iv?.recommendation || iv?.reasoning) {
+      lines.push(`Investment view — ${iv.recommendation || "unclear"}: ${iv.reasoning || ""}`);
+    }
+
+    if (searchCount) {
+      lines.push(`Synthesized from ${searchCount} searches across ${sourceCount} unique public sources.`);
+    }
+
+    if (lines.length) return lines.join("\n\n");
+  }
 
   if (searchCount > 0) {
-    const scope = queryLabels.length ? ` covering ${queryLabels.join(", ")}` : "";
-    return `Across ${searchCount} searches${scope}, FounderLens found ${sourceCount} unique public sources. The structured summary was not returned by the model, so use the expandable sources below as the verified evidence base and treat any missing sections as unknowns until follow-up diligence confirms them.`;
+    return `Across ${searchCount} searches, FounderLens found ${sourceCount} unique public sources. The structured summary was not returned by the model — use the expandable sources below as the verified evidence base and treat any missing sections as unknowns until follow-up diligence confirms them.`;
   }
-
-  if (raw?.trim()) {
-    return raw.trim().slice(0, 500);
-  }
-
+  if (raw?.trim()) return raw.trim().slice(0, 800);
   return "Across 0 searches, no public sources were available to synthesize. Try adding both founder and company name, then rerun Deep Diligence.";
+}
+
+function SummaryHighlights({ data }: { data: DeepBrief }) {
+  const chips: { label: string; value: string }[] = [];
+  if (data.investmentView?.recommendation) chips.push({ label: "Recommendation", value: data.investmentView.recommendation });
+  if (data.marketSizing?.tam) chips.push({ label: "TAM", value: data.marketSizing.tam });
+  if (data.marketSizing?.isVentureScale) chips.push({ label: "Venture-scale", value: data.marketSizing.isVentureScale });
+  if (data.fundingBenchmark?.companyFunding) chips.push({ label: "Funding", value: data.fundingBenchmark.companyFunding });
+  if (data.competitorLandscape?.moatPotential) chips.push({ label: "Moat", value: data.competitorLandscape.moatPotential });
+  if (data.businessModel?.pricingModel) chips.push({ label: "Pricing", value: data.businessModel.pricingModel });
+  if (!chips.length) return null;
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {chips.map((c) => (
+        <span key={c.label} className="text-xs px-3 py-1.5 rounded-full bg-secondary text-foreground border border-border">
+          <span className="text-muted-foreground">{c.label}:</span> {c.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MiniBar({
+  title,
+  data,
+  colorMap,
+}: {
+  title: string;
+  data: { name: string; value: number }[];
+  colorMap: Record<string, string>;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-5">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">{title}</div>
+      <div className="h-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data}>
+            <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" />
+            <YAxis allowDecimals={false} stroke="currentColor" className="text-muted-foreground text-xs" />
+            <Tooltip cursor={{ fill: "oklch(0.3 0 0 / 0.2)" }} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
+            <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+              {data.map((d) => (
+                <Cell key={d.name} fill={colorMap[d.name] || "oklch(0.7 0.12 220)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 }
 
 function DiligenceCharts({ data }: { data: DeepBrief }) {
@@ -297,54 +412,36 @@ function DiligenceCharts({ data }: { data: DeepBrief }) {
     ).length,
   }));
 
+  const competitors = (data.competitorLandscape?.competitors || []).reduce<Record<string, number>>(
+    (acc, c) => {
+      const k = (c.category || "other").toLowerCase();
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
+  const compData = Object.entries(competitors).map(([name, value]) => ({ name, value }));
+
+  // Overview scorecard derived from filled-in sections
+  const score = (n: number, max: number) => Math.round((Math.min(n, max) / max) * 5);
+  const overview = [
+    { name: "team", value: score(data.foundingTeam?.knownTeamMembers?.length || 0, 4) },
+    { name: "traction", value: score(data.tractionValidation?.signals?.length || 0, 5) },
+    { name: "market", value: data.marketSizing?.tam ? 4 : 1 },
+    { name: "moat", value: data.competitorLandscape?.moatPotential ? 4 : 2 },
+    { name: "risks", value: 5 - Math.min(5, (data.risksAndRedFlags || []).filter((r) => (r.severity || "").toLowerCase() === "high").length * 2) },
+  ];
+
   const hasRisks = risks.some((r) => r.value > 0);
   const hasSignals = signals.some((s) => s.value > 0);
-  if (!hasRisks && !hasSignals) return null;
+  const hasComp = compData.length > 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      {hasRisks && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Risks by severity
-          </div>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={risks}>
-                <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" />
-                <YAxis allowDecimals={false} stroke="currentColor" className="text-muted-foreground text-xs" />
-                <Tooltip cursor={{ fill: "oklch(0.3 0 0 / 0.2)" }} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {risks.map((r) => (
-                    <Cell key={r.name} fill={SEVERITY_COLOR[r.name]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-      {hasSignals && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Traction signals by confidence
-          </div>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={signals}>
-                <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" />
-                <YAxis allowDecimals={false} stroke="currentColor" className="text-muted-foreground text-xs" />
-                <Tooltip cursor={{ fill: "oklch(0.3 0 0 / 0.2)" }} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {signals.map((s) => (
-                    <Cell key={s.name} fill={CONFIDENCE_COLOR[s.name]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+      <MiniBar title="Diligence overview (0–5)" data={overview} colorMap={{}} />
+      {hasRisks && <MiniBar title="Risks by severity" data={risks} colorMap={SEVERITY_COLOR} />}
+      {hasSignals && <MiniBar title="Traction signals by confidence" data={signals} colorMap={CONFIDENCE_COLOR} />}
+      {hasComp && <MiniBar title="Competitors by category" data={compData} colorMap={{}} />}
     </div>
   );
 }
