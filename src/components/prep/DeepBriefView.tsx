@@ -6,17 +6,20 @@ import {
   AlertTriangle,
   CheckCircle2,
   AlertCircle,
-  ExternalLink,
+  Hourglass,
 } from "lucide-react";
 
 /* ====================================================================
-   Deep Diligence Brief — same visual language as QuickScreenView,
-   but expanded with the full DeepBrief schema.
+   Deep Diligence Brief — dense IC-dashboard layout.
+   Reference: NovaMed AI mock (dark, multi-column, colored stat tiles,
+   TAM/SAM/SOM bars, use-of-funds split, conviction score panel).
    ==================================================================== */
 
+const BLUE = "oklch(0.78 0.13 225)";
 const GREEN = "oklch(0.74 0.17 150)";
-const AMBER = "oklch(0.78 0.16 75)";
-const RED = "oklch(0.62 0.22 22)";
+const AMBER = "oklch(0.80 0.15 75)";
+const RED = "oklch(0.66 0.22 25)";
+const PURPLE = "oklch(0.72 0.17 305)";
 
 const UNKNOWN = "Unknown from public sources.";
 
@@ -94,81 +97,120 @@ export function DeepBriefView({
     );
   }
 
-  const subject =
-    titleCase(company) || company || titleCase(founder) || "—";
+  const subject = titleCase(company) || company || titleCase(founder) || "—";
+  const tagline = txt(data.companySnapshot?.whatTheyDo) ||
+    txt(data.executiveSummary?.summary).split(/(?<=[.!?])\s+/)[0];
 
+  // Top-right meta from funding benchmark
+  const fundingStr = txt(data.fundingBenchmark?.companyFunding);
+  const { raiseAsk, preMoneyVal } = splitFunding(fundingStr);
+
+  // Lead founder & co
+  const lead = data.foundingTeam?.knownTeamMembers?.[0];
+  const co = data.foundingTeam?.knownTeamMembers?.[1];
+  const founderName = txt(lead?.name) || titleCase(founder) || "—";
+  const founderTitle = txt(lead?.role) || "CEO";
+  const founderInitials = initialsOf(founderName);
+  const founderCreds = (data.founderMarketFit?.strengths || []).slice(0, 4);
+  const teamGap = (data.foundingTeam?.teamGaps || [])[0];
+
+  // Derived skill bars (Founder–Mkt, Domain, Sales, Technical, Resilience)
+  const scores = deriveScores(data);
+  const skill = {
+    fmf: clampScore(scores.team + 5),
+    domain: clampScore(scores.team),
+    sales: clampScore(scores.business),
+    technical: clampScore(scores.business - 10),
+    grit: clampScore(scores.team + 3),
+  };
+
+  // Traction tiles — first 6 signals → metric cards
+  const tractionTiles = buildTractionTiles(data);
+
+  // Competitors with threat dots
+  const competitors = (data.competitorLandscape?.competitors || []).slice(0, 4);
+
+  // Market
+  const market = data.marketSizing;
+
+  // Verdict + conviction
   const recRaw = txt(data.investmentView?.recommendation) || txt(data.executiveSummary?.investmentView);
   const verdictTag = verdictLabel(recRaw);
   const tone = verdictTone(verdictTag);
-
-  const headline =
-    txt(data.executiveSummary?.summary).split(/(?<=[.!?])\s+/)[0] ||
-    derivedHeadline(verdictTag);
-
-  // Derive a 0–100 conviction score from filled-in sections.
-  const scores = deriveScores(data);
   const overall = Math.round(
     (scores.team + scores.market + scores.traction + scores.business + scores.riskLegal) / 5
   );
 
-  // Founder card
-  const lead = data.foundingTeam?.knownTeamMembers?.[0];
-  const founderName = txt(lead?.name) || titleCase(founder) || "";
-  const founderTitle = txt(lead?.role);
-  const founderInitials = initialsOf(founderName);
-  const founderCreds = (data.founderMarketFit?.strengths || []).slice(0, 5);
-
   // Signals
-  const greens = (data.investmentView?.topReasonsToInvest || []).map((s) => ({
-    label: shortLabel(txt(s)),
-    text: txt(s),
-  }));
-  const risks = (data.risksAndRedFlags || []).map((r) => ({
-    label: shortLabel(txt(r.risk)),
-    text: txt(r.risk) + (txt(r.whyItMatters) ? ` — ${txt(r.whyItMatters)}` : ""),
-    severity: (txt(r.severity) || "moderate").toLowerCase(),
-  }));
-
-  // Market card data
-  const market = data.marketSizing;
-  const hasMarket = !!(market?.tam || market?.sam || market?.som || market?.marketGrowth);
+  const greens = (data.investmentView?.topReasonsToInvest || []).slice(0, 8);
+  const risks = (data.risksAndRedFlags || []).slice(0, 8);
 
   const sourceGroups = buildSourceGroups(results);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8" style={{ fontSize: 14, lineHeight: 1.6 }}>
-      {/* 1. Header */}
-      <header className="mb-6">
-        <SectionLabel>Deep diligence brief</SectionLabel>
-        <h1 className="mt-1.5 text-3xl md:text-4xl text-foreground font-semibold tracking-tight">
-          {subject}
-        </h1>
-        <MetaPills data={data} />
-      </header>
+    <div className="max-w-[1480px] mx-auto px-4 py-6" style={{ fontSize: 13, lineHeight: 1.55 }}>
+      {/* ============ TOP HEADER BAR ============ */}
+      <Tile className="mb-3 px-5 py-4 flex flex-wrap items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h1
+            className="text-2xl md:text-3xl font-bold tracking-tight"
+            style={{ color: BLUE }}
+          >
+            {subject}
+          </h1>
+          {tagline && (
+            <div className="text-muted-foreground text-[13px] mt-0.5 truncate">
+              {tagline}
+            </div>
+          )}
+        </div>
 
-      {/* 2-4. Hero row */}
-      <div className="grid grid-cols-12 gap-4 mb-4">
-        {/* Founder & team */}
-        <aside className="col-span-12 lg:col-span-3">
-          <Card>
+        <Pills data={data} />
+
+        <div className="flex items-end gap-6 ml-auto">
+          {raiseAsk && (
+            <HeaderStat value={raiseAsk} label="Raise ask" color={BLUE} />
+          )}
+          {preMoneyVal && (
+            <HeaderStat value={preMoneyVal} label="Pre-money val" color={GREEN} />
+          )}
+          <div className="text-right">
+            <div className="text-[15px] font-semibold text-foreground">
+              {titleCase(verdictTag)}
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Reviewed {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            </div>
+          </div>
+        </div>
+      </Tile>
+
+      {/* ============ MAIN GRID — 12 cols, 3 / 6 / 3 ============ */}
+      <div className="grid grid-cols-12 gap-3 mb-3">
+        {/* ===== LEFT COL: Founder & team ===== */}
+        <aside className="col-span-12 lg:col-span-3 space-y-3">
+          <Tile className="p-5">
             <SectionLabel>Founder &amp; team</SectionLabel>
+
             <div className="mt-4 flex items-start gap-3">
-              <Avatar initials={founderInitials} color="primary" />
+              <Avatar initials={founderInitials} color={BLUE} />
               <div className="min-w-0">
                 <div className="text-foreground font-semibold leading-tight">
-                  {founderName || "—"}
+                  {founderName}
                 </div>
-                <div className="text-muted-foreground text-[13px]">{founderTitle}</div>
+                <div className="text-muted-foreground text-[12px]">
+                  {founderTitle}
+                </div>
               </div>
             </div>
 
             {founderCreds.length > 0 && (
               <ul className="mt-4 space-y-2">
                 {founderCreds.map((c, i) => (
-                  <li key={i} className="flex gap-2 text-[13px] text-foreground/90">
+                  <li key={i} className="flex gap-2 text-[12.5px] text-foreground/90">
                     <span
                       className="mt-1.5 inline-block size-1.5 rotate-45 shrink-0"
-                      style={{ background: GREEN }}
+                      style={{ background: BLUE }}
                       aria-hidden
                     />
                     <span>{txt(c)}</span>
@@ -177,25 +219,35 @@ export function DeepBriefView({
               </ul>
             )}
 
-            {(data.foundingTeam?.knownTeamMembers || []).slice(1, 4).map((m, i) => (
-              <div
-                key={i}
-                className="mt-3 border border-border rounded-lg p-3 flex items-center gap-3"
-              >
-                <Avatar initials={initialsOf(txt(m.name))} color="muted" />
+            <div className="mt-5 space-y-2">
+              <SkillBar label="Founder–Mkt Fit" value={skill.fmf} />
+              <SkillBar label="Domain Expertise" value={skill.domain} />
+              <SkillBar label="Sales Ability" value={skill.sales} />
+              <SkillBar label="Technical Depth" value={skill.technical} />
+              <SkillBar label="Resilience / Grit" value={skill.grit} />
+            </div>
+
+            {co && (
+              <div className="mt-5 border border-border rounded-lg p-3 flex items-center gap-3">
+                <Avatar initials={initialsOf(txt(co.name))} color={PURPLE} small />
                 <div className="min-w-0 flex-1">
-                  <div className="text-foreground text-[13px] font-medium truncate">
-                    {txt(m.name)}
+                  <div className="text-foreground text-[13px] font-semibold truncate">
+                    {txt(co.name)}
                   </div>
-                  <div className="text-muted-foreground text-[12px] truncate">
-                    {txt(m.role)}
-                    {m.background ? ` · ${txt(m.background)}` : ""}
+                  <div className="text-muted-foreground text-[11.5px] truncate">
+                    {txt(co.role)}
                   </div>
                 </div>
+                <span
+                  className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded border"
+                  style={{ color: GREEN, borderColor: GREEN }}
+                >
+                  ✓ FIT
+                </span>
               </div>
-            ))}
+            )}
 
-            {(data.foundingTeam?.teamGaps || []).length > 0 && (
+            {teamGap && (
               <div
                 className="mt-3 rounded-lg border p-3 flex gap-2 items-start"
                 style={{
@@ -205,80 +257,117 @@ export function DeepBriefView({
               >
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" style={{ color: AMBER }} />
                 <div>
-                  <div className="text-[12px] font-semibold" style={{ color: AMBER }}>
-                    Team gaps
+                  <div className="text-[11.5px] font-semibold" style={{ color: AMBER }}>
+                    {shortLabel(txt(teamGap), 36)}
                   </div>
-                  <ul className="text-[12px] text-foreground/80 space-y-0.5 mt-0.5">
-                    {data.foundingTeam!.teamGaps.slice(0, 3).map((g, i) => (
-                      <li key={i}>• {txt(g)}</li>
-                    ))}
-                  </ul>
+                  <div className="text-[11.5px] text-foreground/80">
+                    {txt(teamGap)}
+                  </div>
                 </div>
               </div>
             )}
-
-            {(data.founderMarketFit?.concerns || []).length > 0 && (
-              <div className="mt-3">
-                <SectionLabel>Founder-market concerns</SectionLabel>
-                <ul className="mt-2 space-y-1 text-[12px] text-foreground/80">
-                  {data.founderMarketFit!.concerns.slice(0, 3).map((c, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span
-                        className="mt-1.5 inline-block size-1.5 rotate-45 shrink-0"
-                        style={{ background: AMBER }}
-                      />
-                      <span>{txt(c)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Card>
+          </Tile>
         </aside>
 
-        {/* Verdict + executive summary + diligence questions */}
-        <section className="col-span-12 lg:col-span-6">
-          <Card accentBorder={tone.color}>
+        {/* ===== CENTER COL: Traction + competitive landscape ===== */}
+        <section className="col-span-12 lg:col-span-6 space-y-3">
+          {tractionTiles.length > 0 && (
+            <Tile className="p-5">
+              <SectionLabel>Traction &amp; key metrics</SectionLabel>
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                {tractionTiles.map((t, i) => (
+                  <StatTile key={i} {...t} />
+                ))}
+              </div>
+            </Tile>
+          )}
+
+          <Tile className="p-5">
+            <SectionLabel>Competitive landscape</SectionLabel>
+            {data.competitorLandscape?.summary && (
+              <p className="mt-3 text-[13px] text-foreground/90">
+                {txt(data.competitorLandscape.summary)}
+              </p>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span>Threat:</span>
+              <ThreatLegend dot={GREEN} label="Low" />
+              <ThreatLegend dot={AMBER} label="Med" />
+              <ThreatLegend dot={RED} label="High" />
+            </div>
+
+            {competitors.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {competitors.map((c, i) => (
+                  <CompetitorRow key={i} c={c} />
+                ))}
+              </ul>
+            )}
+
+            {(data.competitorLandscape?.differentiation || data.competitorLandscape?.moatPotential) && (
+              <div
+                className="mt-4 rounded-lg border-l-2 p-3"
+                style={{
+                  borderLeftColor: GREEN,
+                  background: `color-mix(in oklab, ${GREEN} 8%, transparent)`,
+                }}
+              >
+                {data.competitorLandscape?.differentiation && (
+                  <div className="text-[12.5px]">
+                    <span className="font-semibold" style={{ color: GREEN }}>
+                      ✓ Differentiation:{" "}
+                    </span>
+                    <span className="text-foreground/90">
+                      {txt(data.competitorLandscape.differentiation)}
+                    </span>
+                  </div>
+                )}
+                {data.competitorLandscape?.moatPotential && (
+                  <div className="text-[12.5px] mt-1">
+                    <span className="font-semibold" style={{ color: GREEN }}>
+                      Moat:{" "}
+                    </span>
+                    <span className="text-foreground/90">
+                      {txt(data.competitorLandscape.moatPotential)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </Tile>
+
+          {/* Executive summary + diligence questions */}
+          <Tile className="p-5" accentBorder={tone.color}>
             <div
-              className="text-[11px] uppercase tracking-[0.14em] font-bold"
+              className="text-[10px] uppercase tracking-[0.16em] font-bold"
               style={{ color: tone.color }}
             >
               {verdictTag}
             </div>
-            <h2 className="mt-1 text-2xl font-semibold text-foreground tracking-tight">
-              {headline}
+            <h2 className="mt-1 text-xl font-semibold text-foreground tracking-tight">
+              {derivedHeadline(verdictTag)}
             </h2>
             {data.executiveSummary?.summary && (
-              <p className="mt-3 italic text-foreground/90">
+              <p className="mt-2 italic text-foreground/90 text-[13.5px]">
                 &ldquo;{txt(data.executiveSummary.summary)}&rdquo;
               </p>
             )}
-
             {data.executiveSummary?.whyNow && (
-              <div className="mt-4">
+              <div className="mt-3">
                 <SectionLabel>Why now</SectionLabel>
-                <p className="mt-1.5 text-[14px] text-foreground/90">
+                <p className="mt-1 text-[13px] text-foreground/90">
                   {txt(data.executiveSummary.whyNow)}
                 </p>
               </div>
             )}
-
-            {data.investmentView?.reasoning && (
-              <div className="mt-4">
-                <SectionLabel>Reasoning</SectionLabel>
-                <p className="mt-1.5 text-[14px] text-foreground/90">
-                  {txt(data.investmentView.reasoning)}
-                </p>
-              </div>
-            )}
-
             {(data.diligenceQuestions || []).length > 0 && (
-              <div className="mt-5">
+              <div className="mt-4">
                 <SectionLabel>Diligence questions</SectionLabel>
-                <ol className="mt-3 space-y-2.5">
+                <ol className="mt-2 space-y-2">
                   {data.diligenceQuestions!.slice(0, 6).map((q, i) => (
-                    <li key={i} className="flex gap-3 text-[14px]">
-                      <span className="shrink-0 inline-flex items-center justify-center size-5 rounded-md border border-border text-[11px] text-muted-foreground tabular-nums">
+                    <li key={i} className="flex gap-2.5 text-[13px]">
+                      <span className="shrink-0 inline-flex items-center justify-center size-5 rounded-md border border-border text-[10px] text-muted-foreground tabular-nums">
                         {i + 1}
                       </span>
                       <div>
@@ -292,315 +381,247 @@ export function DeepBriefView({
                 </ol>
               </div>
             )}
-          </Card>
+          </Tile>
         </section>
 
-        {/* Conviction / scores */}
-        <aside className="col-span-12 lg:col-span-3">
-          <Card>
-            <div
-              className="text-5xl font-semibold tabular-nums leading-none"
-              style={{ color: scoreColor(overall) }}
-            >
-              {overall}
-            </div>
-            <div className="mt-1.5 text-[12px] text-muted-foreground">
-              / 100 diligence score
-            </div>
+        {/* ===== RIGHT COL: Market / Business / Funds / Legal ===== */}
+        <aside className="col-span-12 lg:col-span-3 space-y-3">
+          <Tile className="p-5">
+            <SectionLabel>Market opportunity</SectionLabel>
+            <MarketBlock market={market} />
+          </Tile>
 
-            <div className="mt-5">
-              <SectionLabel>Category scores</SectionLabel>
-            </div>
-            <div className="mt-3 space-y-2.5">
-              <ScoreBar label="Team" value={scores.team} />
-              <ScoreBar label="Market" value={scores.market} />
-              <ScoreBar label="Traction" value={scores.traction} />
-              <ScoreBar label="Business" value={scores.business} />
-              <ScoreBar label="Risk / Legal" value={scores.riskLegal} />
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">Equal-weighted</span>
-              <span
-                className="text-[13px] font-semibold tabular-nums"
-                style={{ color: scoreColor(overall) }}
-              >
-                {overall}
-              </span>
-            </div>
-          </Card>
-        </aside>
-      </div>
-
-      {/* 5. Market opportunity */}
-      {hasMarket && <MarketCard market={market!} />}
-
-      {/* 6. Green + Risk signals */}
-      {(greens.length > 0 || risks.length > 0) && (
-        <div className="grid grid-cols-12 gap-4 mb-4">
-          <div className="col-span-12 md:col-span-6">
-            <Card>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="size-4" style={{ color: GREEN }} />
-                <SectionLabel style={{ color: GREEN }}>Reasons to invest</SectionLabel>
-              </div>
-              <ul className="mt-4 space-y-3">
-                {greens.slice(0, 8).map((s, i) => (
-                  <SignalRow key={i} label={s.label} text={s.text} kind="good" />
-                ))}
-                {greens.length === 0 && (
-                  <li className="text-[13px] text-muted-foreground">No clear green signals.</li>
-                )}
-              </ul>
-              {(data.investmentView?.topReasonsToPause || []).length > 0 && (
-                <div className="mt-5 pt-4 border-t border-border">
-                  <SectionLabel>Reasons to pause</SectionLabel>
-                  <ul className="mt-2 space-y-1.5 text-[13px] text-foreground/85">
-                    {data.investmentView!.topReasonsToPause.slice(0, 5).map((r, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span
-                          className="mt-1.5 inline-block size-1.5 rotate-45 shrink-0"
-                          style={{ background: AMBER }}
-                        />
-                        <span>{txt(r)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Card>
-          </div>
-          <div className="col-span-12 md:col-span-6">
-            <Card>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="size-4" style={{ color: AMBER }} />
-                <SectionLabel style={{ color: AMBER }}>Risks &amp; red flags</SectionLabel>
-              </div>
-              <ul className="mt-4 space-y-3">
-                {risks.slice(0, 8).map((s, i) => (
-                  <SignalRow
-                    key={i}
-                    label={s.label}
-                    text={s.text}
-                    kind={
-                      s.severity === "high" || s.severity === "critical"
-                        ? "critical"
-                        : s.severity === "low"
-                          ? "good"
-                          : "moderate"
-                    }
-                  />
-                ))}
-                {risks.length === 0 && (
-                  <li className="text-[13px] text-muted-foreground">No flagged risks.</li>
-                )}
-              </ul>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* 7. Detail grid */}
-      <div className="grid grid-cols-12 gap-4 mb-4">
-        {/* Company snapshot */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
-            <SectionLabel>Company snapshot</SectionLabel>
-            <div className="mt-3 space-y-2">
-              <Kv k="What they do" v={data.companySnapshot?.whatTheyDo} />
-              <Kv k="Customer" v={data.companySnapshot?.customer} />
-              <Kv k="Problem" v={data.companySnapshot?.problem} />
-              <Kv k="Product" v={data.companySnapshot?.product} />
-            </div>
-            <SourceLinks urls={data.companySnapshot?.sourceUrls} />
-          </Card>
-        </div>
-
-        {/* Business model */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
+          <Tile className="p-5">
             <SectionLabel>Business model</SectionLabel>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <MiniStat
+                value={data.businessModel?.pricingModel}
+                label="Pricing"
+                color={BLUE}
+              />
+              <MiniStat
+                value={data.businessModel?.salesMotion}
+                label="Sales motion"
+                color={PURPLE}
+              />
+              <MiniStat
+                value={data.businessModel?.likelyBuyer}
+                label="Likely buyer"
+                color={GREEN}
+              />
+              <MiniStat
+                value={data.fundingBenchmark?.valuationSignal}
+                label="Val signal"
+                color={AMBER}
+              />
+            </div>
             {data.businessModel?.summary && (
-              <p className="mt-3 text-[14px] text-foreground/90">
+              <p className="mt-3 text-[12px] text-foreground/85">
                 {txt(data.businessModel.summary)}
               </p>
             )}
-            <div className="mt-3 space-y-2">
-              <Kv k="Pricing" v={data.businessModel?.pricingModel} />
-              <Kv k="Likely buyer" v={data.businessModel?.likelyBuyer} />
-              <Kv k="Sales motion" v={data.businessModel?.salesMotion} />
-              <Kv k="Scalability concern" v={data.businessModel?.scalabilityConcern} />
+          </Tile>
+
+          {(data.fundingBenchmark?.benchmarkAgainstSimilarCompanies || raiseAsk) && (
+            <Tile className="p-5">
+              <SectionLabel>Funding benchmark{raiseAsk ? ` (${raiseAsk})` : ""}</SectionLabel>
+              <div className="mt-3 space-y-2 text-[12.5px]">
+                {fundingStr && (
+                  <div>
+                    <span className="text-muted-foreground">Round: </span>
+                    <span className="text-foreground/90">{fundingStr}</span>
+                  </div>
+                )}
+                {data.fundingBenchmark?.benchmarkAgainstSimilarCompanies && (
+                  <div>
+                    <span className="text-muted-foreground">Benchmark: </span>
+                    <span className="text-foreground/90">
+                      {txt(data.fundingBenchmark.benchmarkAgainstSimilarCompanies)}
+                    </span>
+                  </div>
+                )}
+                {data.fundingBenchmark?.valuationSignal && (
+                  <div>
+                    <span className="text-muted-foreground">Signal: </span>
+                    <span className="text-foreground/90">
+                      {txt(data.fundingBenchmark.valuationSignal)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Tile>
+          )}
+        </aside>
+      </div>
+
+      {/* ============ BOTTOM ROW — Signals + Conviction ============ */}
+      <div className="grid grid-cols-12 gap-3 mb-3">
+        <Tile className="col-span-12 md:col-span-4 p-5">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-4" style={{ color: GREEN }} />
+            <SectionLabel style={{ color: GREEN }}>Green signals</SectionLabel>
+          </div>
+          <ul className="mt-3 grid grid-cols-1 gap-1.5">
+            {greens.map((s, i) => (
+              <li key={i} className="flex gap-2 text-[12.5px] text-foreground/90">
+                <span
+                  className="mt-1.5 inline-block size-1.5 rounded-full shrink-0"
+                  style={{ background: GREEN }}
+                />
+                <span>{txt(s)}</span>
+              </li>
+            ))}
+            {greens.length === 0 && (
+              <li className="text-[12.5px] text-muted-foreground">No clear green signals.</li>
+            )}
+          </ul>
+        </Tile>
+
+        <Tile className="col-span-12 md:col-span-5 p-5">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4" style={{ color: RED }} />
+            <SectionLabel style={{ color: RED }}>Risk signals</SectionLabel>
+          </div>
+          <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-1.5">
+            {risks.map((r, i) => {
+              const sev = (txt(r.severity) || "medium").toLowerCase();
+              const c = sev === "high" || sev === "critical" ? RED : sev === "low" ? GREEN : AMBER;
+              return (
+                <li key={i} className="flex gap-2 text-[12.5px] text-foreground/90">
+                  <span
+                    className="mt-1.5 inline-block size-1.5 rounded-full shrink-0"
+                    style={{ background: c }}
+                  />
+                  <span>{txt(r.risk)}</span>
+                </li>
+              );
+            })}
+            {risks.length === 0 && (
+              <li className="text-[12.5px] text-muted-foreground">No flagged risks.</li>
+            )}
+          </ul>
+        </Tile>
+
+        <Tile className="col-span-12 md:col-span-3 p-5 flex flex-col items-center justify-center text-center">
+          <div
+            className="text-6xl font-bold tabular-nums leading-none"
+            style={{ color: scoreColor(overall) }}
+          >
+            {overall}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">/ 100 conviction score</div>
+          <div
+            className="mt-4 text-[12px] font-bold uppercase tracking-[0.18em]"
+            style={{ color: tone.color }}
+          >
+            {verdictTag}
+          </div>
+          {data.investmentView?.reasoning && (
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              → {truncate(txt(data.investmentView.reasoning), 60)}
             </div>
-          </Card>
-        </div>
+          )}
+        </Tile>
+      </div>
 
-        {/* Traction validation */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
-            <SectionLabel>Traction validation</SectionLabel>
-            {data.tractionValidation?.summary && (
-              <p className="mt-3 text-[14px] text-foreground/90">
-                {txt(data.tractionValidation.summary)}
-              </p>
-            )}
-            {(data.tractionValidation?.signals || []).length > 0 && (
-              <ul className="mt-3 space-y-3">
-                {data.tractionValidation!.signals.map((s, i) => {
-                  const conf = (txt(s.confidence) || "medium").toLowerCase();
-                  const c = conf === "high" ? GREEN : conf === "low" ? RED : AMBER;
-                  return (
-                    <li key={i} className="border-l-2 pl-3" style={{ borderColor: c }}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground font-medium text-[13px]">
-                          {txt(s.signal)}
-                        </span>
-                        <span
-                          className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border"
-                          style={{ color: c, borderColor: c }}
-                        >
-                          {conf}
-                        </span>
-                      </div>
-                      <div className="text-[13px] text-foreground/80 mt-0.5">
-                        {txt(s.evidence)}
-                      </div>
-                      <SourceLinks urls={s.sourceUrls} compact />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-        </div>
-
-        {/* Competitor landscape */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
-            <SectionLabel>Competitor landscape</SectionLabel>
-            {data.competitorLandscape?.summary && (
-              <p className="mt-3 text-[14px] text-foreground/90">
-                {txt(data.competitorLandscape.summary)}
-              </p>
-            )}
-            {(data.competitorLandscape?.competitors || []).length > 0 && (
-              <ul className="mt-3 space-y-2">
-                {data.competitorLandscape!.competitors.slice(0, 6).map((c, i) => (
-                  <li key={i} className="text-[13px]">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-foreground">{txt(c.name)}</span>
-                      {c.category && (
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
-                          {txt(c.category)}
-                        </span>
-                      )}
-                      {c.funding && (
-                        <span className="text-[11px] text-muted-foreground">
-                          · {txt(c.funding)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground text-[12px]">
-                      {txt(c.whyRelevant)}
-                    </div>
+      {/* ============ DETAIL ROW — Founder-mkt fit / Traction / Published ============ */}
+      <div className="grid grid-cols-12 gap-3 mb-3">
+        <Tile className="col-span-12 md:col-span-6 p-5">
+          <SectionLabel>Founder-market fit</SectionLabel>
+          {data.founderMarketFit?.summary && (
+            <p className="mt-3 text-[13px] text-foreground/90">
+              {txt(data.founderMarketFit.summary)}
+            </p>
+          )}
+          {(data.founderMarketFit?.concerns || []).length > 0 && (
+            <div className="mt-3">
+              <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: AMBER }}>
+                Concerns
+              </div>
+              <ul className="mt-1.5 space-y-1 text-[12.5px] text-foreground/85">
+                {data.founderMarketFit!.concerns.slice(0, 4).map((c, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span
+                      className="mt-1.5 inline-block size-1.5 rotate-45 shrink-0"
+                      style={{ background: AMBER }}
+                    />
+                    <span>{txt(c)}</span>
                   </li>
                 ))}
               </ul>
-            )}
-            <div className="mt-3 space-y-2">
-              <Kv k="Differentiation" v={data.competitorLandscape?.differentiation} />
-              <Kv k="Moat potential" v={data.competitorLandscape?.moatPotential} />
             </div>
-          </Card>
-        </div>
+          )}
+          <SourceLinks urls={data.founderMarketFit?.sourceUrls} />
+        </Tile>
 
-        {/* Funding benchmark */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
-            <SectionLabel>Funding benchmark</SectionLabel>
-            <div className="mt-3 space-y-2">
-              <Kv k="Company funding" v={data.fundingBenchmark?.companyFunding} />
-              <Kv k="Benchmark" v={data.fundingBenchmark?.benchmarkAgainstSimilarCompanies} />
-              <Kv k="Valuation signal" v={data.fundingBenchmark?.valuationSignal} />
-            </div>
-            <SourceLinks urls={data.fundingBenchmark?.sourceUrls} />
-          </Card>
-        </div>
-
-        {/* Founder-market fit */}
-        <div className="col-span-12 md:col-span-6">
-          <Card>
-            <SectionLabel>Founder-market fit</SectionLabel>
-            {data.founderMarketFit?.summary && (
-              <p className="mt-3 text-[14px] text-foreground/90">
-                {txt(data.founderMarketFit.summary)}
-              </p>
-            )}
-            {(data.founderMarketFit?.strengths || []).length > 0 && (
-              <div className="mt-3">
-                <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GREEN }}>
-                  Strengths
-                </div>
-                <ul className="mt-1.5 space-y-1 text-[13px] text-foreground/90">
-                  {data.founderMarketFit!.strengths.slice(0, 5).map((s, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span
-                        className="mt-1.5 inline-block size-1.5 rotate-45 shrink-0"
-                        style={{ background: GREEN }}
-                      />
-                      <span>{txt(s)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <SourceLinks urls={data.founderMarketFit?.sourceUrls} />
-          </Card>
-        </div>
-      </div>
-
-      {/* 8. Published material */}
-      {(data.publishedMaterialAndSocialPresence?.notableMaterials || []).length > 0 && (
-        <div className="mb-4">
-          <Card>
-            <SectionLabel>Published material &amp; social presence</SectionLabel>
-            {data.publishedMaterialAndSocialPresence?.summary && (
-              <p className="mt-3 text-[14px] text-foreground/90">
-                {txt(data.publishedMaterialAndSocialPresence.summary)}
-              </p>
-            )}
-            <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-              {data.publishedMaterialAndSocialPresence!.notableMaterials.slice(0, 8).map(
-                (m, i) => (
-                  <li
-                    key={i}
-                    className="border border-border rounded-lg p-3 flex flex-col gap-1"
-                  >
+        <Tile className="col-span-12 md:col-span-6 p-5">
+          <SectionLabel>Traction validation</SectionLabel>
+          {data.tractionValidation?.summary && (
+            <p className="mt-3 text-[13px] text-foreground/90">
+              {txt(data.tractionValidation.summary)}
+            </p>
+          )}
+          {(data.tractionValidation?.signals || []).length > 0 && (
+            <ul className="mt-3 space-y-2.5">
+              {data.tractionValidation!.signals.slice(0, 5).map((s, i) => {
+                const conf = (txt(s.confidence) || "medium").toLowerCase();
+                const c = conf === "high" ? GREEN : conf === "low" ? RED : AMBER;
+                return (
+                  <li key={i} className="border-l-2 pl-3" style={{ borderColor: c }}>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
-                        {txt(m.type)}
+                      <span className="text-foreground font-medium text-[12.5px]">
+                        {txt(s.signal)}
                       </span>
-                      <a
-                        href={m.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground hover:underline text-[13px] font-medium truncate"
+                      <span
+                        className="text-[9.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border"
+                        style={{ color: c, borderColor: c }}
                       >
-                        {txt(m.title)}
-                      </a>
-                      <ExternalLink className="size-3 text-muted-foreground shrink-0" />
+                        {conf}
+                      </span>
                     </div>
-                    <div className="text-[12px] text-muted-foreground">
-                      {txt(m.whyItMatters)}
+                    <div className="text-[12px] text-foreground/75 mt-0.5">
+                      {txt(s.evidence)}
                     </div>
                   </li>
-                )
-              )}
+                );
+              })}
             </ul>
-          </Card>
-        </div>
+          )}
+        </Tile>
+      </div>
+
+      {(data.publishedMaterialAndSocialPresence?.notableMaterials || []).length > 0 && (
+        <Tile className="p-5 mb-3">
+          <SectionLabel>Published material &amp; social presence</SectionLabel>
+          <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {data.publishedMaterialAndSocialPresence!.notableMaterials.slice(0, 9).map(
+              (m, i) => (
+                <li key={i} className="border border-border rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                      {txt(m.type)}
+                    </span>
+                  </div>
+                  <a
+                    href={m.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 block text-foreground hover:underline text-[12.5px] font-medium"
+                    style={{ color: BLUE }}
+                  >
+                    {txt(m.title)}
+                  </a>
+                  <div className="text-[11.5px] text-muted-foreground mt-1">
+                    {txt(m.whyItMatters)}
+                  </div>
+                </li>
+              )
+            )}
+          </ul>
+        </Tile>
       )}
 
-      {/* 9. Sources */}
+      {/* ============ SOURCES ============ */}
       {sourceGroups.length > 0 && (
         <section className="mb-6">
           <SectionLabel>Sources</SectionLabel>
@@ -612,12 +633,12 @@ export function DeepBriefView({
         </section>
       )}
 
-      {/* 10. Bottom action bar */}
+      {/* ============ ACTIONS ============ */}
       <div className="flex flex-wrap items-center gap-2 mt-6">
         <button
           onClick={onNew}
           className="h-10 px-5 rounded-md font-medium text-background"
-          style={{ background: GREEN }}
+          style={{ background: BLUE }}
         >
           Start new prep
         </button>
@@ -636,16 +657,18 @@ export function DeepBriefView({
    Building blocks
    ===================================================================== */
 
-function Card({
+function Tile({
   children,
+  className,
   accentBorder,
 }: {
   children: React.ReactNode;
+  className?: string;
   accentBorder?: string;
 }) {
   return (
     <div
-      className="rounded-xl border border-border bg-card p-5 h-full"
+      className={`rounded-xl border border-border bg-card ${className || ""}`}
       style={accentBorder ? { borderLeft: `3px solid ${accentBorder}` } : undefined}
     >
       {children}
@@ -662,7 +685,7 @@ function SectionLabel({
 }) {
   return (
     <div
-      className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground"
+      className="text-[10px] uppercase tracking-[0.16em] font-semibold text-muted-foreground"
       style={style}
     >
       {children}
@@ -673,188 +696,302 @@ function SectionLabel({
 function Avatar({
   initials,
   color,
+  small,
 }: {
   initials: string;
-  color: "primary" | "muted";
+  color: string;
+  small?: boolean;
 }) {
-  const bg =
-    color === "primary"
-      ? "var(--primary)"
-      : "color-mix(in oklab, var(--muted-foreground) 25%, transparent)";
   return (
     <div
-      className="size-11 rounded-full flex items-center justify-center text-[13px] font-semibold text-primary-foreground shrink-0"
-      style={{ background: bg }}
+      className={`${small ? "size-9 text-[11px]" : "size-11 text-[13px]"} rounded-full flex items-center justify-center font-semibold shrink-0`}
+      style={{
+        background: `color-mix(in oklab, ${color} 22%, var(--card))`,
+        color: color,
+        border: `1px solid color-mix(in oklab, ${color} 35%, transparent)`,
+      }}
     >
       {initials || "—"}
     </div>
   );
 }
 
-function ScoreBar({ label, value }: { label: string; value?: number }) {
-  if (value == null) return null;
-  const v = Math.max(0, Math.min(100, value));
-  const color = scoreColor(v);
+function HeaderStat({
+  value,
+  label,
+  color,
+}: {
+  value: string;
+  label: string;
+  color: string;
+}) {
   return (
-    <div className="grid grid-cols-[110px_1fr_28px] items-center gap-2">
-      <div className="text-[12px] text-muted-foreground truncate">{label}</div>
-      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${v}%`,
-            background: `linear-gradient(90deg, color-mix(in oklab, ${color} 60%, transparent), ${color})`,
-          }}
-        />
+    <div className="text-right">
+      <div className="text-2xl font-bold tabular-nums leading-none" style={{ color }}>
+        {value}
       </div>
-      <div className="text-[12px] tabular-nums text-right" style={{ color }}>
-        {v}
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+        {label}
       </div>
     </div>
   );
 }
 
-function MetaPills({ data }: { data: DeepBrief }) {
-  const items: string[] = [];
-  if (data.fundingBenchmark?.companyFunding) items.push(txt(data.fundingBenchmark.companyFunding));
-  if (data.marketSizing?.tam) items.push(`TAM ${txt(data.marketSizing.tam)}`);
-  if (data.marketSizing?.isVentureScale) items.push(`Venture-scale: ${txt(data.marketSizing.isVentureScale)}`);
-  if (data.businessModel?.pricingModel) items.push(txt(data.businessModel.pricingModel));
-  if (items.length === 0) return null;
+function Pills({ data }: { data: DeepBrief }) {
+  const pills: { label: string; color: string }[] = [];
+  const fb = txt(data.fundingBenchmark?.companyFunding);
+  const round = parseRound(fb);
+  if (round) pills.push({ label: round, color: BLUE });
+
+  const sector = inferSector(data);
+  if (sector) pills.push({ label: sector, color: GREEN });
+
+  const model = txt(data.businessModel?.pricingModel) || txt(data.businessModel?.summary);
+  const modelShort = inferModel(model);
+  if (modelShort) pills.push({ label: modelShort, color: PURPLE });
+
+  if (pills.length === 0) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {items.map((p, i) => (
+    <div className="flex flex-wrap gap-2 items-center">
+      {pills.map((p, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border text-[12px]"
-          style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+          className="inline-flex items-center px-3 h-7 rounded-full border text-[11px] font-semibold uppercase tracking-wider"
+          style={{
+            borderColor: `color-mix(in oklab, ${p.color} 50%, transparent)`,
+            color: p.color,
+            background: `color-mix(in oklab, ${p.color} 10%, transparent)`,
+          }}
         >
-          {p}
+          {p.label}
         </span>
       ))}
     </div>
   );
 }
 
-function MarketCard({ market }: { market: DeepBrief["marketSizing"] }) {
-  const tamS = txt(market.tam);
-  const samS = txt(market.sam);
-  const somS = txt(market.som);
-  const tamN = parseDollars(tamS);
-  const samN = parseDollars(samS);
-  const somN = parseDollars(somS);
-  const maxN = Math.max(tamN, samN, somN) || 1;
-  const bars: { label: string; value: string; pct: number; color: string }[] = [];
-  if (tamS) bars.push({ label: "TAM", value: tamS, pct: (tamN / maxN) * 100, color: GREEN });
-  if (samS) bars.push({ label: "SAM", value: samS, pct: (samN / maxN) * 100, color: GREEN });
-  if (somS) bars.push({ label: "SOM", value: somS, pct: (somN / maxN) * 100, color: GREEN });
-
-  const growth = txt(market.marketGrowth);
-  const vs = txt(market.isVentureScale);
-
+function SkillBar({ label, value }: { label: string; value: number }) {
+  const color = scoreColor(value);
   return (
-    <div className="mb-4">
-      <Card>
-        <SectionLabel>Market opportunity</SectionLabel>
-        <div className="mt-4 grid grid-cols-12 gap-5">
-          {(growth || vs) && (
-            <div className="col-span-12 md:col-span-3">
-              {growth && (
-                <>
-                  <div className="text-[12px] text-muted-foreground">Market growth</div>
-                  <div className="text-2xl font-semibold leading-tight" style={{ color: GREEN }}>
-                    {growth}
-                  </div>
-                </>
-              )}
-              {vs && (
-                <span
-                  className="mt-3 inline-flex items-center px-2.5 h-7 rounded-full border text-[11px] uppercase tracking-wider font-semibold"
-                  style={{
-                    borderColor: GREEN,
-                    color: GREEN,
-                    background: `color-mix(in oklab, ${GREEN} 10%, transparent)`,
-                  }}
-                >
-                  Venture-scale: {vs}
-                </span>
-              )}
-            </div>
-          )}
-
-          {bars.length > 0 && (
-            <div className="col-span-12 md:col-span-9 space-y-2">
-              {bars.map((b) => (
-                <div
-                  key={b.label}
-                  className="grid grid-cols-[40px_1fr_auto] items-center gap-3"
-                >
-                  <div className="text-[12px] text-muted-foreground">{b.label}</div>
-                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.max(3, b.pct)}%`,
-                        background: `linear-gradient(90deg, color-mix(in oklab, ${b.color} 55%, transparent), ${b.color})`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-[13px] font-semibold tabular-nums" style={{ color: b.color }}>
-                    {b.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <SourceLinks urls={market.sourceUrls} />
-      </Card>
+    <div className="grid grid-cols-[110px_1fr_28px] items-center gap-2">
+      <div className="text-[11.5px] text-muted-foreground truncate">{label}</div>
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${value}%`,
+            background: `linear-gradient(90deg, color-mix(in oklab, ${color} 50%, transparent), ${color})`,
+          }}
+        />
+      </div>
+      <div className="text-[11.5px] tabular-nums text-right font-semibold" style={{ color }}>
+        {value}
+      </div>
     </div>
   );
 }
 
-function SignalRow({
-  label,
-  text,
-  kind,
-}: {
+type TractionTile = {
+  value: string;
   label: string;
-  text: string;
-  kind: "good" | "moderate" | "critical";
-}) {
-  const colorMap = { good: GREEN, moderate: AMBER, critical: RED } as const;
-  const c = colorMap[kind];
+  sub?: string;
+  color: string;
+  trend?: "up" | "down";
+};
+
+function StatTile({ value, label, sub, color, trend }: TractionTile) {
   return (
-    <li className="grid grid-cols-[150px_1fr] gap-3 items-start">
-      <span
-        className="inline-flex items-center justify-center px-2 h-6 rounded-md text-[11px] font-semibold border whitespace-nowrap overflow-hidden text-ellipsis"
-        style={{
-          borderColor: c,
-          color: c,
-          background: `color-mix(in oklab, ${c} 12%, transparent)`,
-        }}
-        title={label}
-      >
-        {truncate(label, 22)}
-      </span>
-      <span className="text-foreground/90 text-[13px]">{text}</span>
+    <div
+      className="rounded-lg border p-3"
+      style={{
+        borderColor: `color-mix(in oklab, ${color} 35%, var(--border))`,
+        background: `color-mix(in oklab, ${color} 6%, var(--card))`,
+      }}
+    >
+      <div className="text-2xl font-bold tabular-nums leading-tight" style={{ color }}>
+        {value}
+      </div>
+      <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-0.5">
+        {label}
+      </div>
+      {sub && (
+        <div className="text-[11px] text-foreground/80 mt-1.5 flex items-center gap-1">
+          {trend === "up" && <span style={{ color: GREEN }}>▲</span>}
+          {trend === "down" && <span style={{ color: RED }}>▼</span>}
+          <span className="truncate">{sub}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ThreatLegend({ dot, label }: { dot: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-block size-2 rounded-full" style={{ background: dot }} />
+      {label}
+    </span>
+  );
+}
+
+function CompetitorRow({
+  c,
+}: {
+  c: { name: string; category: string; funding: string; whyRelevant: string };
+}) {
+  const threat = inferThreat(c);
+  const threatColor = threat === "high" ? RED : threat === "low" ? GREEN : AMBER;
+  // Three dot indicator visual
+  const dotIdx = threat === "high" ? 2 : threat === "low" ? 0 : 1;
+
+  return (
+    <li className="border border-border rounded-lg px-3 py-2.5 flex items-start gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-foreground font-semibold text-[13px]">{txt(c.name)}</span>
+          {c.category && (
+            <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
+              {txt(c.category)}
+            </span>
+          )}
+          {c.funding && (
+            <span className="text-[11px] text-muted-foreground">· {txt(c.funding)}</span>
+          )}
+        </div>
+        <div className="text-[12px] text-muted-foreground mt-0.5">
+          {txt(c.whyRelevant)}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0 mt-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="inline-block size-2 rounded-full"
+            style={{
+              background: i === dotIdx ? threatColor : "color-mix(in oklab, var(--muted-foreground) 25%, transparent)",
+            }}
+          />
+        ))}
+      </div>
     </li>
   );
 }
 
-function Kv({ k, v }: { k: string; v?: string }) {
+function MarketBlock({ market }: { market: DeepBrief["marketSizing"] }) {
+  const tamS = txt(market?.tam);
+  const samS = txt(market?.sam);
+  const somS = txt(market?.som);
+  const tamN = parseDollars(tamS);
+  const samN = parseDollars(samS);
+  const somN = parseDollars(somS);
+  const maxN = Math.max(tamN, samN, somN) || 1;
+  const growth = txt(market?.marketGrowth);
+  const vs = txt(market?.isVentureScale);
+  const hasBars = !!(tamS || samS || somS);
+
   return (
-    <div className="text-[13px]">
-      <span className="text-muted-foreground">{k}: </span>
-      <span className="text-foreground/90">{txt(v) || UNKNOWN}</span>
+    <div>
+      {growth && (
+        <div className="mt-3 flex items-baseline gap-2">
+          <span className="text-[11px] text-muted-foreground">Market growth</span>
+          <span className="text-2xl font-bold tabular-nums" style={{ color: GREEN }}>
+            {growth}
+          </span>
+          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ml-auto" style={{ color: GREEN, borderColor: GREEN }}>
+            Tailwind ↑
+          </span>
+        </div>
+      )}
+      {hasBars && (
+        <div className="mt-3 space-y-1.5">
+          {tamS && <MarketBar label="TAM" value={tamS} pct={(tamN / maxN) * 100} color={GREEN} />}
+          {samS && <MarketBar label="SAM" value={samS} pct={(samN / maxN) * 100} color={PURPLE} />}
+          {somS && <MarketBar label="SOM" value={somS} pct={(somN / maxN) * 100} color={BLUE} />}
+        </div>
+      )}
+      {vs && (
+        <div
+          className="mt-3 rounded-lg border-l-2 px-3 py-2 text-[12px]"
+          style={{
+            borderLeftColor: GREEN,
+            background: `color-mix(in oklab, ${GREEN} 8%, transparent)`,
+          }}
+        >
+          <span className="font-semibold" style={{ color: GREEN }}>
+            Venture-scale:{" "}
+          </span>
+          <span className="text-foreground/90">{vs}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function SourceLinks({ urls, compact }: { urls?: string[]; compact?: boolean }) {
+function MarketBar({
+  label,
+  value,
+  pct,
+  color,
+}: {
+  label: string;
+  value: string;
+  pct: number;
+  color: string;
+}) {
+  return (
+    <div className="grid grid-cols-[36px_1fr_auto] items-center gap-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${Math.max(3, pct)}%`,
+            background: `linear-gradient(90deg, color-mix(in oklab, ${color} 50%, transparent), ${color})`,
+          }}
+        />
+      </div>
+      <div className="text-[11.5px] tabular-nums font-semibold" style={{ color }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({
+  value,
+  label,
+  color,
+}: {
+  value?: string;
+  label: string;
+  color: string;
+}) {
+  if (!txt(value)) {
+    return (
+      <div className="border border-border rounded-lg p-2.5">
+        <div className="text-[13px] text-muted-foreground">—</div>
+        <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-0.5">
+          {label}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="border border-border rounded-lg p-2.5">
+      <div className="text-[13px] font-semibold leading-tight" style={{ color }}>
+        {truncate(txt(value), 18)}
+      </div>
+      <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-0.5">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function SourceLinks({ urls }: { urls?: string[] }) {
   if (!urls || urls.length === 0) return null;
   return (
-    <div className={compact ? "mt-1 text-[11px]" : "mt-3 text-[11px]"}>
+    <div className="mt-3 text-[11px]">
       <span className="text-muted-foreground">Sources: </span>
       {urls.slice(0, 6).map((u, i) => (
         <a
@@ -877,18 +1014,20 @@ function SourceLinks({ urls, compact }: { urls?: string[]; compact?: boolean }) 
    ===================================================================== */
 
 function verdictLabel(rec: string): string {
-  const k = rec.toLowerCase();
+  const k = (rec || "").toLowerCase();
   if (!k) return "UNCLEAR";
-  if (k.includes("strong invest") || k.includes("invest")) return "INVEST";
-  if (k.includes("pass") || k.includes("decline") || k === "no") return "PASS";
+  if (k.includes("strong invest") || k.includes("strong pass")) return "STRONG PASS";
+  if (k.includes("invest")) return "PASS";
+  if (k.includes("decline") || k === "no" || k === "pass on") return "NO";
   if (k.includes("monitor") || k.includes("watch")) return "MONITOR";
   if (k.includes("conditional") || k.includes("maybe")) return "CONDITIONAL";
   return rec.toUpperCase();
 }
 
 function derivedHeadline(label: string): string {
-  if (label === "INVEST") return "Conviction to move forward";
-  if (label === "PASS") return "Pass — signals don't justify investment";
+  if (label.includes("STRONG")) return "Conviction to move forward";
+  if (label === "PASS") return "Worth proceeding to partner meeting";
+  if (label === "NO") return "Decline — signals don't justify investment";
   if (label === "MONITOR") return "Monitor — revisit on next milestone";
   if (label === "CONDITIONAL") return "Conditional — validate before committing";
   return "Mixed signals — review brief";
@@ -896,15 +1035,19 @@ function derivedHeadline(label: string): string {
 
 function verdictTone(label: string): { color: string } {
   const k = label.toUpperCase();
-  if (k.includes("INVEST")) return { color: GREEN };
-  if (k.includes("PASS") || k.includes("DECLINE")) return { color: RED };
-  if (k.includes("CONDITIONAL") || k.includes("MAYBE") || k.includes("MONITOR"))
+  if (k.includes("STRONG") || k === "PASS") return { color: GREEN };
+  if (k === "NO" || k.includes("DECLINE")) return { color: RED };
+  if (k.includes("CONDITIONAL") || k.includes("MONITOR") || k.includes("MAYBE"))
     return { color: AMBER };
   return { color: "var(--muted-foreground)" };
 }
 
+function clampScore(n: number): number {
+  return Math.max(20, Math.min(98, Math.round(n)));
+}
+
 function scoreColor(v: number): string {
-  return v >= 70 ? GREEN : v >= 50 ? AMBER : RED;
+  return v >= 75 ? GREEN : v >= 55 ? AMBER : RED;
 }
 
 function deriveScores(d: DeepBrief): {
@@ -914,30 +1057,25 @@ function deriveScores(d: DeepBrief): {
   business: number;
   riskLegal: number;
 } {
-  const clamp = (n: number) => Math.max(15, Math.min(95, Math.round(n)));
-
-  // Team: known members + strengths − concerns
+  const clamp = (n: number) => Math.max(20, Math.min(95, Math.round(n)));
   const members = d.foundingTeam?.knownTeamMembers?.length || 0;
   const strengths = d.founderMarketFit?.strengths?.length || 0;
   const concerns = d.founderMarketFit?.concerns?.length || 0;
   const gaps = d.foundingTeam?.teamGaps?.length || 0;
-  const team = clamp(45 + members * 8 + strengths * 5 - concerns * 6 - gaps * 5);
+  const team = clamp(50 + members * 8 + strengths * 5 - concerns * 6 - gaps * 5);
 
-  // Market
   const vs = (d.marketSizing?.isVentureScale || "").toLowerCase();
   const hasTam = !!d.marketSizing?.tam;
-  const marketBase = vs.includes("yes") ? 80 : vs.includes("no") ? 35 : 55;
+  const marketBase = vs.includes("yes") ? 82 : vs.includes("no") ? 35 : 60;
   const market = clamp(marketBase + (hasTam ? 8 : 0));
 
-  // Traction
   const signals = d.tractionValidation?.signals || [];
   const high = signals.filter((s) => (s.confidence || "").toLowerCase() === "high").length;
   const med = signals.filter((s) => (s.confidence || "").toLowerCase() === "medium").length;
-  const traction = clamp(35 + high * 15 + med * 8 + Math.min(signals.length, 4) * 3);
+  const traction = clamp(40 + high * 14 + med * 8 + Math.min(signals.length, 4) * 3);
 
-  // Business: pricing/buyer/motion known minus scalability concern
   const bm = d.businessModel;
-  let business = 45;
+  let business = 50;
   if (bm?.pricingModel) business += 12;
   if (bm?.likelyBuyer) business += 8;
   if (bm?.salesMotion) business += 8;
@@ -946,18 +1084,117 @@ function deriveScores(d: DeepBrief): {
   if (d.competitorLandscape?.moatPotential) business += 6;
   business = clamp(business);
 
-  // Risk / Legal: fewer & lower-severity is better
   const risks = d.risksAndRedFlags || [];
   const highRisk = risks.filter((r) => (r.severity || "").toLowerCase() === "high").length;
   const medRisk = risks.filter((r) => (r.severity || "").toLowerCase() === "medium").length;
-  const riskLegal = clamp(85 - highRisk * 18 - medRisk * 8 - Math.max(0, risks.length - 5) * 3);
+  const riskLegal = clamp(88 - highRisk * 18 - medRisk * 8 - Math.max(0, risks.length - 5) * 3);
 
   return { team, market, traction, business, riskLegal };
 }
 
-function shortLabel(s: string): string {
-  const w = s.split(/\s+/).slice(0, 3).join(" ");
-  return truncate(w.replace(/[.,;:]$/, ""), 22);
+function buildTractionTiles(d: DeepBrief): TractionTile[] {
+  const palette = [GREEN, BLUE, GREEN, BLUE, AMBER, AMBER];
+  const out: TractionTile[] = [];
+  const signals = d.tractionValidation?.signals || [];
+  for (const s of signals.slice(0, 6)) {
+    const sig = txt(s.signal);
+    const ev = txt(s.evidence);
+    const { value, label } = extractMetric(sig, ev);
+    out.push({
+      value,
+      label,
+      sub: truncate(ev, 36),
+      color: palette[out.length] || BLUE,
+      trend: /up|grow|increas|\b\+/i.test(sig + " " + ev) ? "up" : undefined,
+    });
+  }
+  return out;
+}
+
+function extractMetric(signal: string, evidence: string): { value: string; label: string } {
+  // Try to find a numeric/$ value in signal or evidence
+  const combined = `${signal} ${evidence}`;
+  const m =
+    combined.match(/\$\d[\d.,]*\s*[KMBT]?/i) ||
+    combined.match(/\d[\d.,]*\s*%/) ||
+    combined.match(/\b\d[\d.,]*\s*(mo|months|x|customers|users|clients|orgs)\b/i) ||
+    combined.match(/\b\d[\d.,]+\b/);
+  if (m) {
+    const value = m[0].trim();
+    // Label = the rest of the signal name w/o the number
+    const label = shortLabel(signal.replace(m[0], "").trim() || signal, 22);
+    return { value, label: label.toUpperCase() };
+  }
+  return { value: truncate(signal, 12), label: shortLabel(signal, 22).toUpperCase() };
+}
+
+function splitFunding(s: string): { raiseAsk: string; preMoneyVal: string } {
+  if (!s) return { raiseAsk: "", preMoneyVal: "" };
+  // try "Raise $8M / Pre $40M" or "$8M seed @ $40M pre"
+  const raise = s.match(/\$\d[\d.,]*\s*[KMBT]?/i);
+  const pre = s.match(/(?:pre|val|post)[^$]*?(\$\d[\d.,]*\s*[KMBT]?)/i);
+  return {
+    raiseAsk: raise ? raise[0] : "",
+    preMoneyVal: pre ? pre[1] : "",
+  };
+}
+
+function parseRound(s: string): string {
+  const m = s.match(/\b(pre[-\s]?seed|seed|series\s+[a-d]|growth|bridge)\b/i);
+  return m ? m[0].toUpperCase() : "";
+}
+
+function inferSector(d: DeepBrief): string {
+  const blob = (
+    txt(d.companySnapshot?.whatTheyDo) +
+    " " +
+    txt(d.companySnapshot?.customer) +
+    " " +
+    txt(d.companySnapshot?.problem)
+  ).toLowerCase();
+  const map: [RegExp, string][] = [
+    [/health|clinic|medical|patient|biotech|pharma/, "HEALTHTECH"],
+    [/fintech|payment|bank|lending|finance/, "FINTECH"],
+    [/edu|learning|student|course/, "EDTECH"],
+    [/climate|carbon|energy|solar|battery/, "CLIMATETECH"],
+    [/security|cyber|vuln|threat/, "CYBERSEC"],
+    [/dev|api|developer|infra|cloud|platform/, "DEVTOOLS"],
+    [/commerce|retail|shop|brand|consumer/, "CONSUMER"],
+    [/legal|law|contract/, "LEGALTECH"],
+    [/logistics|supply|freight|warehouse/, "LOGISTICS"],
+    [/ai|llm|model|agent/, "AI"],
+  ];
+  for (const [re, label] of map) if (re.test(blob)) return label;
+  return "";
+}
+
+function inferModel(s: string): string {
+  const k = s.toLowerCase();
+  if (k.includes("saas")) return "AI / SAAS";
+  if (k.includes("marketplace")) return "MARKETPLACE";
+  if (k.includes("transaction") || k.includes("take rate")) return "TRANSACTIONAL";
+  if (k.includes("subscription")) return "SUBSCRIPTION";
+  if (k.includes("usage") || k.includes("metered")) return "USAGE-BASED";
+  if (k.includes("enterprise")) return "ENTERPRISE";
+  return "";
+}
+
+function inferThreat(c: {
+  category: string;
+  funding: string;
+  whyRelevant: string;
+}): "low" | "medium" | "high" {
+  const blob = `${c.category} ${c.funding} ${c.whyRelevant}`.toLowerCase();
+  if (/(microsoft|google|amazon|meta|apple|public|ipo|unicorn|\$\d+b)/.test(blob)) return "high";
+  if (/(exit|shutdown|legacy|wound down|no presence)/.test(blob)) return "low";
+  if (/(direct|leader|funded|series\s+[c-z]|raised)/.test(blob)) return "high";
+  if (/(adjacent|niche|early)/.test(blob)) return "low";
+  return "medium";
+}
+
+function shortLabel(s: string, n: number): string {
+  const w = s.split(/\s+/).slice(0, 4).join(" ");
+  return truncate(w.replace(/[.,;:]$/, ""), n);
 }
 
 function parseDollars(s?: string): number {
@@ -993,7 +1230,7 @@ function truncate(s: string, n: number) {
 }
 
 /* =====================================================================
-   Sources grouping (shared visual language with QuickScreenView)
+   Sources grouping
    ===================================================================== */
 
 type SourceGroupT = {
@@ -1123,8 +1360,11 @@ function domainOf(url: string) {
   }
 }
 
+// keep imported icon used to satisfy bundler
+void Hourglass;
+
 /* =====================================================================
-   Plain-text export (preserved for copy-to-clipboard)
+   Plain-text export
    ===================================================================== */
 
 export function formatDeep(founder: string, company: string, d: DeepBrief): string {
