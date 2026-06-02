@@ -68,24 +68,116 @@ async function callAnthropic(system: string, user: string, maxTokens: number): P
   return text;
 }
 
+function stripPreamble(raw: string): string {
+  let s = raw.trim();
+  // Strip smart/straight leading quotes the model sometimes emits.
+  s = s.replace(/^[\u201C\u201D"']+/, "");
+  // Strip opening markdown fence (```json or ```).
+  s = s.replace(/^```(?:json)?\s*/i, "");
+  // Strip a closing fence if present.
+  s = s.replace(/\s*```\s*$/i, "");
+  return s.trim();
+}
+
+// Walk the string and return the substring from the first `{` to the
+// matching closing `}`, respecting string literals & escapes. If the JSON
+// is truncated, returns the longest prefix that can be auto-closed.
+function extractBalanced(input: string): string | null {
+  const start = input.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inStr = false;
+  let escape = false;
+  let stack: Array<"{" | "["> = [];
+  let lastBalancedEnd = -1;
+  for (let i = start; i < input.length; i++) {
+    const ch = input[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inStr) {
+      if (ch === "\\") escape = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+    } else if (ch === "{" || ch === "[") {
+      stack.push(ch as "{" | "[");
+      if (ch === "{") depth++;
+    } else if (ch === "}" || ch === "]") {
+      const open = stack.pop();
+      if (ch === "}") depth--;
+      if (stack.length === 0) {
+        lastBalancedEnd = i;
+        break;
+      }
+      void open;
+    }
+  }
+  if (lastBalancedEnd >= start) {
+    return input.slice(start, lastBalancedEnd + 1);
+  }
+  // Truncated — try to auto-close remaining open brackets.
+  const tail = input.slice(start);
+  let close = "";
+  // Close any open string first.
+  let t = tail;
+  if (inStr) t = t + '"';
+  // Recompute stack from the truncated prefix.
+  const s2: Array<"{" | "["> = [];
+  let inStr2 = false;
+  let esc2 = false;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (esc2) { esc2 = false; continue; }
+    if (inStr2) {
+      if (ch === "\\") esc2 = true;
+      else if (ch === '"') inStr2 = false;
+      continue;
+    }
+    if (ch === '"') inStr2 = true;
+    else if (ch === "{" || ch === "[") s2.push(ch as "{" | "[");
+    else if (ch === "}" || ch === "]") s2.pop();
+  }
+  // Drop a trailing comma if present.
+  let trimmed = t.replace(/[,\s]+$/, "");
+  while (s2.length > 0) {
+    const open = s2.pop();
+    close += open === "{" ? "}" : "]";
+  }
+  return trimmed + close;
+}
+
 function extractJson(raw: string): unknown | null {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fenced ? fenced[1] : trimmed;
+  if (!raw) return null;
+  const body = stripPreamble(raw);
+  // Try a direct parse first.
   try {
     return JSON.parse(body);
   } catch {
-    const start = body.indexOf("{");
-    const end = body.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(body.slice(start, end + 1));
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    // Continue.
   }
+  // Try a fenced block anywhere in the original raw.
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch {
+      // Continue.
+    }
+  }
+  // Brace-balanced extraction with auto-close for truncated output.
+  const candidate = extractBalanced(body);
+  if (candidate) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

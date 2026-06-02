@@ -61,10 +61,16 @@ export const Route = createFileRoute("/api/brief")({
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5",
-            max_tokens: body.mode === "quick" ? 4500 : 7000,
+            max_tokens: body.mode === "quick" ? 6000 : 8000,
             system,
             stream: true,
-            messages: [{ role: "user", content: user }],
+            messages: [
+              { role: "user", content: user },
+              // Prefill assistant turn with "{" to force pure JSON output
+              // (no markdown fences, no preamble). We re-prepend "{" to
+              // the streamed body below.
+              { role: "assistant", content: "{" },
+            ],
           }),
         });
 
@@ -82,7 +88,10 @@ export const Route = createFileRoute("/api/brief")({
 
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
+            // Emit the prefilled "{" so the client sees a complete JSON doc.
+            controller.enqueue(encoder.encode("{"));
             let buf = "";
+            let stopReason: string | null = null;
             try {
               while (true) {
                 const { done, value } = await reader.read();
@@ -104,6 +113,8 @@ export const Route = createFileRoute("/api/brief")({
                       typeof evt.delta.text === "string"
                     ) {
                       controller.enqueue(encoder.encode(evt.delta.text));
+                    } else if (evt.type === "message_delta" && evt.delta?.stop_reason) {
+                      stopReason = evt.delta.stop_reason;
                     }
                   } catch {
                     // ignore partial / non-JSON
@@ -113,6 +124,9 @@ export const Route = createFileRoute("/api/brief")({
             } catch (e) {
               controller.error(e);
               return;
+            }
+            if (stopReason && stopReason !== "end_turn") {
+              console.warn(`Anthropic stop_reason: ${stopReason}`);
             }
             controller.close();
           },

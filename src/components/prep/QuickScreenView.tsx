@@ -58,11 +58,47 @@ export function QuickScreenView({
 }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    const text = data?.convictionSummary || data?.searchSummary || raw || "";
+    const text = data?.convictionSummary || data?.searchSummary || "";
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  // If parsing failed, show a clean error state instead of dumping raw JSON.
+  if (!data) {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-16 text-center">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          Quick VC screen
+        </div>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          {titleCase(company) || company || titleCase(founder) || "Result"}
+        </h1>
+        <p className="mt-6 text-[14px] leading-[1.6] text-foreground/80">
+          The model returned a response we couldn&rsquo;t parse into the
+          screen schema. This usually clears up on a retry.
+        </p>
+        {raw && (
+          <details className="mt-6 text-left">
+            <summary className="text-[12px] text-muted-foreground cursor-pointer">
+              Show raw model output
+            </summary>
+            <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-card p-3 text-[12px] text-foreground/70">
+              {raw}
+            </pre>
+          </details>
+        )}
+        <div className="mt-8 flex justify-center gap-3">
+          <button
+            onClick={onNew}
+            className="rounded-md border border-border px-4 py-2 text-[14px] text-foreground hover:bg-card"
+          >
+            Start new prep
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const subject =
     [
@@ -82,7 +118,6 @@ export function QuickScreenView({
   const convictionSummary =
     txt(data?.convictionSummary) ||
     txt(data?.searchSummary) ||
-    raw ||
     "";
 
   const founderProfile = data?.founderProfile;
