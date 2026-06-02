@@ -53,7 +53,11 @@ export function DeepBriefView({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
           Research summary
         </div>
-        <p className="text-foreground leading-relaxed text-base md:text-lg whitespace-pre-line">
+        {data && <Top3Takeaways data={data} />}
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 mt-5">
+          Full synthesis
+        </div>
+        <p className="text-foreground leading-relaxed text-sm whitespace-pre-line">
           {summary}
         </p>
         {data && <SummaryHighlights data={data} />}
