@@ -55,6 +55,14 @@ export function DeepBriefView({
 
       {data && (
         <ol className="space-y-5 list-none">
+          {data.searchSummary && (
+            <li className="bg-card border-l-4 border-l-[oklch(0.85_0.14_220)] border border-border rounded-xl p-5">
+              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Research summary</h3>
+              <p className="text-foreground leading-relaxed">{data.searchSummary}</p>
+            </li>
+          )}
+
+
           <Section n={1} title="Executive summary">
             <p className="text-foreground leading-relaxed">{data.executiveSummary?.summary || UNKNOWN}</p>
             <Kv k="Investment view" v={data.executiveSummary?.investmentView} />
