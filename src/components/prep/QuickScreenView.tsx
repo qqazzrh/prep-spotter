@@ -200,7 +200,7 @@ export function QuickScreenView({
                     {txt(data.criticalGap.title)}
                   </div>
                   <div className="text-[12px] text-foreground/80">
-                    {data.criticalGap.note}
+                    {txt(data.criticalGap.note)}
                   </div>
                 </div>
               </div>
