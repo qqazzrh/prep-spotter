@@ -516,27 +516,36 @@ function MetaPills({ meta }: { meta: NonNullable<QuickScreen["meta"]> }) {
 }
 
 function MarketCard({ market }: { market: NonNullable<QuickScreen["market"]> }) {
-  const bars: { label: string; value: string; pct: number; color: string }[] = [];
-  const tamN = parseDollars(market.tam);
-  const samN = parseDollars(market.sam);
-  const somN = parseDollars(market.som);
+  const tamS = txt(market.tam);
+  const samS = txt(market.sam);
+  const somS = txt(market.som);
+  const tamN = parseDollars(tamS);
+  const samN = parseDollars(samS);
+  const somN = parseDollars(somS);
   const maxN = Math.max(tamN, samN, somN) || 1;
-  if (market.tam) bars.push({ label: "TAM", value: market.tam, pct: (tamN / maxN) * 100, color: GREEN });
-  if (market.sam) bars.push({ label: "SAM", value: market.sam, pct: (samN / maxN) * 100, color: GREEN });
-  if (market.som) bars.push({ label: "SOM", value: market.som, pct: (somN / maxN) * 100, color: GREEN });
+  const bars: { label: string; value: string; pct: number; color: string }[] = [];
+  if (tamS) bars.push({ label: "TAM", value: tamS, pct: (tamN / maxN) * 100, color: GREEN });
+  if (samS) bars.push({ label: "SAM", value: samS, pct: (samN / maxN) * 100, color: GREEN });
+  if (somS) bars.push({ label: "SOM", value: somS, pct: (somN / maxN) * 100, color: GREEN });
 
-  const isExpanding = (market.direction || "").toLowerCase().includes("expand");
-  const isContracting = (market.direction || "").toLowerCase().includes("contract");
+  const directionStr = txt(market.direction).toLowerCase();
+  const isExpanding = directionStr.includes("expand");
+  const isContracting = directionStr.includes("contract");
   const dirColor = isContracting ? RED : GREEN;
   const dirLabel = isContracting
     ? "Contracting ↓"
     : isExpanding
       ? "Expanding ↑"
-      : market.direction || "";
+      : txt(market.direction);
 
-  const cw = market.tailwind ? { label: "Tailwind:", text: market.tailwind, color: GREEN } :
-            market.headwind ? { label: "Headwind:", text: market.headwind, color: RED } :
-            null;
+  const tw = txt(market.tailwind);
+  const hw = txt(market.headwind);
+  const cw = tw
+    ? { label: "Tailwind:", text: tw, color: GREEN }
+    : hw
+      ? { label: "Headwind:", text: hw, color: RED }
+      : null;
+  const growth = txt(market.growthPctYoY);
 
   return (
     <div className="mb-4">
