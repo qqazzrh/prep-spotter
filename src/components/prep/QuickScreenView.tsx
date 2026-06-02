@@ -21,6 +21,24 @@ const GREEN = "oklch(0.74 0.17 150)";
 const AMBER = "oklch(0.78 0.16 75)";
 const RED = "oklch(0.62 0.22 22)";
 
+/** Render-safety: coerce any model value to a string for React text nodes.
+ *  Objects/arrays/null/undefined become "" so we never throw
+ *  "Objects are not valid as a React child". */
+function txt(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+function num(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
 export function QuickScreenView({
   founder,
   company,
@@ -49,37 +67,41 @@ export function QuickScreenView({
   const subject =
     [
       titleCase(company) || company || "",
-      data?.meta?.round || "",
+      txt(data?.meta?.round),
     ]
       .filter(Boolean)
       .join(" · ") || titleCase(founder) || "—";
 
-  const verdictTag = (data?.verdictLabel || derivedVerdictLabel(data?.quickVerdict)).toUpperCase();
+  const verdictTag = txt(data?.verdictLabel || derivedVerdictLabel(txt(data?.quickVerdict))).toUpperCase() || "UNCLEAR";
   const tone = verdictTone(verdictTag);
 
   const headline =
-    data?.verdictHeadline ||
-    derivedHeadline(data?.quickVerdict, data?.companyOneLiner);
+    txt(data?.verdictHeadline) ||
+    derivedHeadline(txt(data?.quickVerdict), txt(data?.companyOneLiner));
 
   const convictionSummary =
-    data?.convictionSummary ||
-    data?.searchSummary ||
+    txt(data?.convictionSummary) ||
+    txt(data?.searchSummary) ||
     raw ||
     "";
 
   const founderProfile = data?.founderProfile;
-  const founderName = founderProfile?.name || titleCase(founder) || "";
+  const founderName = txt(founderProfile?.name) || titleCase(founder) || "";
   const founderInitials =
-    founderProfile?.initials || initialsOf(founderName);
-  const founderCreds =
-    founderProfile?.credentials ||
-    deriveFounderCreds(data);
+    txt(founderProfile?.initials) || initialsOf(founderName);
+  const founderCreds = Array.isArray(founderProfile?.credentials)
+    ? founderProfile!.credentials!
+    : deriveFounderCreds(data);
 
-  const founderScores = founderProfile?.scores || {};
+  const founderScores = (founderProfile?.scores && typeof founderProfile.scores === "object"
+    ? founderProfile.scores
+    : {}) as Record<string, unknown>;
 
   const conviction = data?.conviction;
-  const convictionScore = conviction?.score;
-  const cat = conviction?.categoryScores || {};
+  const convictionScore = num(conviction?.score);
+  const cat = (conviction?.categoryScores && typeof conviction.categoryScores === "object"
+    ? conviction.categoryScores
+    : {}) as Record<string, unknown>;
 
   const market = data?.market;
   const greenSignals = data?.greenSignals || deriveGreenSignals(data);
@@ -115,7 +137,7 @@ export function QuickScreenView({
                   {founderName || "—"}
                 </div>
                 <div className="text-muted-foreground text-[13px]">
-                  {founderProfile?.title || ""}
+                  {txt(founderProfile?.title)}
                 </div>
               </div>
             </div>
@@ -129,7 +151,7 @@ export function QuickScreenView({
                       style={{ background: GREEN }}
                       aria-hidden
                     />
-                    <span>{c}</span>
+                    <span>{txt(c)}</span>
                   </li>
                 ))}
               </ul>
@@ -137,27 +159,27 @@ export function QuickScreenView({
 
             {hasAnyScore(founderScores) && (
               <div className="mt-5 space-y-2.5">
-                <ScoreBar label="Founder–Mkt Fit" value={founderScores.founderMarketFit} />
-                <ScoreBar label="Domain Expertise" value={founderScores.domainExpertise} />
-                <ScoreBar label="Sales / GTM" value={founderScores.salesGtm} />
-                <ScoreBar label="Technical Depth" value={founderScores.technicalDepth} />
-                <ScoreBar label="Resilience / Grit" value={founderScores.resilience} />
+                <ScoreBar label="Founder–Mkt Fit" value={num(founderScores.founderMarketFit)} />
+                <ScoreBar label="Domain Expertise" value={num(founderScores.domainExpertise)} />
+                <ScoreBar label="Sales / GTM" value={num(founderScores.salesGtm)} />
+                <ScoreBar label="Technical Depth" value={num(founderScores.technicalDepth)} />
+                <ScoreBar label="Resilience / Grit" value={num(founderScores.resilience)} />
               </div>
             )}
 
             {data?.coFounder && (
               <div className="mt-5 border border-border rounded-lg p-3 flex items-center gap-3">
                 <Avatar
-                  initials={data.coFounder.initials || initialsOf(data.coFounder.name || "")}
+                  initials={data.coFounder.initials || initialsOf(txt(data.coFounder.name))}
                   color="muted"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-foreground text-[13px] font-medium truncate">
-                    {data.coFounder.name}
+                    {txt(data.coFounder.name)}
                   </div>
                   <div className="text-muted-foreground text-[12px] truncate">
-                    {data.coFounder.title}
-                    {data.coFounder.credentials ? ` · ${data.coFounder.credentials}` : ""}
+                    {txt(data.coFounder.title)}
+                    {data.coFounder.credentials ? ` · ${txt(data.coFounder.credentials)}` : ""}
                   </div>
                 </div>
                 {data.coFounder.fit && (
@@ -179,10 +201,10 @@ export function QuickScreenView({
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" style={{ color: AMBER }} />
                 <div>
                   <div className="text-[12px] font-semibold" style={{ color: AMBER }}>
-                    {data.criticalGap.title}
+                    {txt(data.criticalGap.title)}
                   </div>
                   <div className="text-[12px] text-foreground/80">
-                    {data.criticalGap.note}
+                    {txt(data.criticalGap.note)}
                   </div>
                 </div>
               </div>
@@ -197,14 +219,14 @@ export function QuickScreenView({
               className="text-[11px] uppercase tracking-[0.14em] font-bold"
               style={{ color: tone.color }}
             >
-              {verdictTag}
+              {txt(verdictTag)}
             </div>
             <h2 className="mt-1 text-2xl font-semibold text-foreground tracking-tight">
-              {headline}
+              {txt(headline)}
             </h2>
             {convictionSummary && (
               <p className="mt-3 italic text-foreground/90">
-                &ldquo;{convictionSummary}&rdquo;
+                &ldquo;{txt(convictionSummary)}&rdquo;
               </p>
             )}
 
@@ -219,9 +241,9 @@ export function QuickScreenView({
                       </span>
                       <div>
                         <span className="font-semibold text-foreground">
-                          {q.topic}:
+                          {txt(q.topic)}:
                         </span>{" "}
-                        <span className="text-foreground/90">{q.question}</span>
+                        <span className="text-foreground/90">{txt(q.question)}</span>
                       </div>
                     </li>
                   ))}
@@ -240,7 +262,7 @@ export function QuickScreenView({
                   className="text-5xl font-semibold tabular-nums leading-none"
                   style={{ color: GREEN }}
                 >
-                  {convictionScore}
+                  {num(convictionScore) ?? ""}
                 </div>
                 <div className="mt-1.5 text-[12px] text-muted-foreground">
                   / 100 conviction score
@@ -256,11 +278,11 @@ export function QuickScreenView({
                   <SectionLabel>Category scores</SectionLabel>
                 </div>
                 <div className="mt-3 space-y-2.5">
-                  <ScoreBar label="Team" value={cat.team} />
-                  <ScoreBar label="Market" value={cat.market} />
-                  <ScoreBar label="Traction" value={cat.traction} />
-                  <ScoreBar label="Business" value={cat.business} />
-                  <ScoreBar label="Risk / Legal" value={cat.riskLegal} />
+                  <ScoreBar label="Team" value={num(cat.team)} />
+                  <ScoreBar label="Market" value={num(cat.market)} />
+                  <ScoreBar label="Traction" value={num(cat.traction)} />
+                  <ScoreBar label="Business" value={num(cat.business)} />
+                  <ScoreBar label="Risk / Legal" value={num(cat.riskLegal)} />
                 </div>
               </>
             )}
@@ -268,14 +290,14 @@ export function QuickScreenView({
             {(conviction?.weighting || convictionScore != null) && (
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  {conviction?.weighting || "Weighted"}
+                  {txt(conviction?.weighting) || "Weighted"}
                 </span>
                 {convictionScore != null && (
                   <span
                     className="text-[13px] font-semibold tabular-nums"
                     style={{ color: GREEN }}
                   >
-                    {convictionScore}
+                    {num(convictionScore) ?? ""}
                   </span>
                 )}
               </div>
@@ -459,12 +481,15 @@ function ScoreBar({ label, value }: { label: string; value?: number }) {
 
 function MetaPills({ meta }: { meta: NonNullable<QuickScreen["meta"]> }) {
   const items: { label: string; danger?: boolean; flame?: boolean }[] = [];
-  if (meta.round) items.push({ label: meta.round });
-  if (meta.valuation) items.push({ label: meta.valuation });
-  if (meta.sector) items.push({ label: meta.sector });
-  if (meta.founded) items.push({ label: meta.founded });
-  if (meta.competingTermSheets)
-    items.push({ label: meta.competingTermSheets, danger: true, flame: true });
+  const push = (v: unknown, opts: { danger?: boolean; flame?: boolean } = {}) => {
+    const s = txt(v);
+    if (s) items.push({ label: s, ...opts });
+  };
+  push(meta.round);
+  push(meta.valuation);
+  push(meta.sector);
+  push(meta.founded);
+  push(meta.competingTermSheets, { danger: true, flame: true });
   if (items.length === 0) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -491,43 +516,52 @@ function MetaPills({ meta }: { meta: NonNullable<QuickScreen["meta"]> }) {
 }
 
 function MarketCard({ market }: { market: NonNullable<QuickScreen["market"]> }) {
-  const bars: { label: string; value: string; pct: number; color: string }[] = [];
-  const tamN = parseDollars(market.tam);
-  const samN = parseDollars(market.sam);
-  const somN = parseDollars(market.som);
+  const tamS = txt(market.tam);
+  const samS = txt(market.sam);
+  const somS = txt(market.som);
+  const tamN = parseDollars(tamS);
+  const samN = parseDollars(samS);
+  const somN = parseDollars(somS);
   const maxN = Math.max(tamN, samN, somN) || 1;
-  if (market.tam) bars.push({ label: "TAM", value: market.tam, pct: (tamN / maxN) * 100, color: GREEN });
-  if (market.sam) bars.push({ label: "SAM", value: market.sam, pct: (samN / maxN) * 100, color: GREEN });
-  if (market.som) bars.push({ label: "SOM", value: market.som, pct: (somN / maxN) * 100, color: GREEN });
+  const bars: { label: string; value: string; pct: number; color: string }[] = [];
+  if (tamS) bars.push({ label: "TAM", value: tamS, pct: (tamN / maxN) * 100, color: GREEN });
+  if (samS) bars.push({ label: "SAM", value: samS, pct: (samN / maxN) * 100, color: GREEN });
+  if (somS) bars.push({ label: "SOM", value: somS, pct: (somN / maxN) * 100, color: GREEN });
 
-  const isExpanding = (market.direction || "").toLowerCase().includes("expand");
-  const isContracting = (market.direction || "").toLowerCase().includes("contract");
+  const directionStr = txt(market.direction).toLowerCase();
+  const isExpanding = directionStr.includes("expand");
+  const isContracting = directionStr.includes("contract");
   const dirColor = isContracting ? RED : GREEN;
   const dirLabel = isContracting
     ? "Contracting ↓"
     : isExpanding
       ? "Expanding ↑"
-      : market.direction || "";
+      : txt(market.direction);
 
-  const cw = market.tailwind ? { label: "Tailwind:", text: market.tailwind, color: GREEN } :
-            market.headwind ? { label: "Headwind:", text: market.headwind, color: RED } :
-            null;
+  const tw = txt(market.tailwind);
+  const hw = txt(market.headwind);
+  const cw = tw
+    ? { label: "Tailwind:", text: tw, color: GREEN }
+    : hw
+      ? { label: "Headwind:", text: hw, color: RED }
+      : null;
+  const growth = txt(market.growthPctYoY);
 
   return (
     <div className="mb-4">
       <Card>
         <SectionLabel>Market opportunity</SectionLabel>
         <div className="mt-4 grid grid-cols-12 gap-5">
-          {(market.growthPctYoY || dirLabel) && (
+          {(growth || dirLabel) && (
             <div className="col-span-12 md:col-span-3 flex md:block items-center gap-4">
-              {market.growthPctYoY && (
+              {growth && (
                 <>
                   <div className="text-[12px] text-muted-foreground">Market growth</div>
                   <div
                     className="text-3xl font-semibold leading-tight"
                     style={{ color: GREEN }}
                   >
-                    {market.growthPctYoY} <span className="text-[12px] text-muted-foreground font-normal">YoY</span>
+                    {growth} <span className="text-[12px] text-muted-foreground font-normal">YoY</span>
                   </div>
                 </>
               )}
@@ -601,6 +635,8 @@ function SignalRow({
 }) {
   const colorMap = { good: GREEN, moderate: AMBER, critical: RED } as const;
   const c = colorMap[kind];
+  const safeLabel = txt(label);
+  const safeText = txt(text);
   return (
     <li className="grid grid-cols-[150px_1fr] gap-3 items-start">
       <span
@@ -610,11 +646,11 @@ function SignalRow({
           color: c,
           background: `color-mix(in oklab, ${c} 12%, transparent)`,
         }}
-        title={label}
+        title={safeLabel}
       >
-        {truncate(label, 22)}
+        {truncate(safeLabel, 22)}
       </span>
-      <span className="text-foreground/90 text-[13px]">{text}</span>
+      <span className="text-foreground/90 text-[13px]">{safeText}</span>
     </li>
   );
 }
@@ -651,14 +687,21 @@ function verdictTone(label: string): { color: string } {
 function deriveFounderCreds(d: QuickScreen | null): string[] {
   const out: string[] = [];
   const fc = d?.founderCredibility?.signals;
-  if (Array.isArray(fc)) out.push(...fc.slice(0, 5));
+  if (Array.isArray(fc)) {
+    for (const x of fc.slice(0, 5)) {
+      const s = txt(x);
+      if (s) out.push(s);
+    }
+  }
   return out;
 }
 
 function deriveGreenSignals(d: QuickScreen | null): { label: string; text: string }[] {
   const out: { label: string; text: string }[] = [];
   for (const r of d?.reasonsToBeInterested || []) {
-    out.push({ label: shortLabel(r), text: r });
+    const s = txt(r);
+    if (!s) continue;
+    out.push({ label: shortLabel(s), text: s });
   }
   return out.slice(0, 6);
 }
@@ -666,14 +709,17 @@ function deriveGreenSignals(d: QuickScreen | null): { label: string; text: strin
 function deriveRiskSignals(d: QuickScreen | null): { label: string; text: string; severity?: string }[] {
   const out: { label: string; text: string; severity?: string }[] = [];
   for (const r of d?.redFlagsOrUnknowns || []) {
-    out.push({ label: shortLabel(r), text: r, severity: "moderate" });
+    const s = txt(r);
+    if (!s) continue;
+    out.push({ label: shortLabel(s), text: s, severity: "moderate" });
   }
   return out.slice(0, 6);
 }
 
 function deriveQuestions(d: QuickScreen | null): { topic: string; question: string }[] {
-  if (!d?.theOneQuestion) return [];
-  return [{ topic: "Key question", question: d.theOneQuestion }];
+  const q = txt(d?.theOneQuestion);
+  if (!q) return [];
+  return [{ topic: "Key question", question: q }];
 }
 
 function shortLabel(s: string): string {
@@ -681,9 +727,9 @@ function shortLabel(s: string): string {
   return truncate(w.replace(/[.,;:]$/, ""), 22);
 }
 
-function hasAnyScore(o: Record<string, number | undefined> | undefined): boolean {
+function hasAnyScore(o: Record<string, unknown> | undefined): boolean {
   if (!o) return false;
-  return Object.values(o).some((v) => typeof v === "number");
+  return Object.values(o).some((v) => num(v) !== undefined);
 }
 
 function hasAnyMarketSignal(m: NonNullable<QuickScreen["market"]>): boolean {
