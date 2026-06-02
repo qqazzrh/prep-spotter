@@ -43,6 +43,62 @@ export type QuickScreen = {
   redFlagsOrUnknowns: string[];
   quickVerdict: "interesting" | "maybe" | "pass" | "unclear" | string;
   theOneQuestion: string;
+
+  // Optional rich-render fields. Filled when evidence allows; UI degrades when missing.
+  meta?: {
+    round?: string;
+    valuation?: string;
+    sector?: string;
+    founded?: string;
+    competingTermSheets?: string;
+  };
+  founderProfile?: {
+    initials?: string;
+    name?: string;
+    title?: string;
+    credentials?: string[];
+    scores?: {
+      founderMarketFit?: number;
+      domainExpertise?: number;
+      salesGtm?: number;
+      technicalDepth?: number;
+      resilience?: number;
+    };
+  };
+  coFounder?: {
+    initials?: string;
+    name?: string;
+    title?: string;
+    credentials?: string;
+    fit?: boolean;
+  };
+  criticalGap?: { title: string; note: string };
+  verdictLabel?: string;
+  verdictHeadline?: string;
+  convictionSummary?: string;
+  questionsToAsk?: { topic: string; question: string }[];
+  conviction?: {
+    score?: number;
+    categoryScores?: {
+      team?: number;
+      market?: number;
+      traction?: number;
+      business?: number;
+      riskLegal?: number;
+    };
+    weighting?: string;
+  };
+  market?: {
+    growthPctYoY?: string;
+    direction?: "expanding" | "contracting" | string;
+    tam?: string;
+    sam?: string;
+    som?: string;
+    tailwind?: string;
+    headwind?: string;
+  };
+  greenSignals?: { label: string; text: string }[];
+  riskSignals?: { label: string; text: string; severity?: "moderate" | "critical" | string }[];
 };
 
 
