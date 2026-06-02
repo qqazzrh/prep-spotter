@@ -552,16 +552,16 @@ function MarketCard({ market }: { market: NonNullable<QuickScreen["market"]> }) 
       <Card>
         <SectionLabel>Market opportunity</SectionLabel>
         <div className="mt-4 grid grid-cols-12 gap-5">
-          {(market.growthPctYoY || dirLabel) && (
+          {(growth || dirLabel) && (
             <div className="col-span-12 md:col-span-3 flex md:block items-center gap-4">
-              {market.growthPctYoY && (
+              {growth && (
                 <>
                   <div className="text-[12px] text-muted-foreground">Market growth</div>
                   <div
                     className="text-3xl font-semibold leading-tight"
                     style={{ color: GREEN }}
                   >
-                    {market.growthPctYoY} <span className="text-[12px] text-muted-foreground font-normal">YoY</span>
+                    {growth} <span className="text-[12px] text-muted-foreground font-normal">YoY</span>
                   </div>
                 </>
               )}
