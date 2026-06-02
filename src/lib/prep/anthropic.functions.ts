@@ -11,16 +11,19 @@ const DEEP_SYSTEM =
 function buildUserMessage(
   founder: string,
   company: string,
-  results: Record<string, TavilyResponse>
+  results: Record<string, TavilyResponse>,
+  mode: "quick" | "deep"
 ) {
+  const perQueryResults = mode === "deep" ? 3 : 4;
+  const perResultChars = mode === "deep" ? 450 : 700;
   const trimmed: Record<string, unknown> = {};
   for (const [q, r] of Object.entries(results)) {
     trimmed[q] = {
-      answer: r.answer,
-      results: (r.results || []).slice(0, 5).map((x) => ({
+      answer: (r.answer || "").slice(0, 400),
+      results: (r.results || []).slice(0, perQueryResults).map((x) => ({
         title: x.title,
         url: x.url,
-        content: (x.content || "").slice(0, 800),
+        content: (x.content || "").slice(0, perResultChars),
       })),
     };
   }
@@ -102,8 +105,8 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       const system = data.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
       const raw = await callAnthropic(
         system,
-        buildUserMessage(data.founder, data.company, data.results),
-        data.mode === "quick" ? 2500 : 5000
+        buildUserMessage(data.founder, data.company, data.results, data.mode),
+        data.mode === "quick" ? 2000 : 3500
       );
       const parsed = extractJson(raw);
       if (parsed && typeof parsed === "object") {
