@@ -233,10 +233,32 @@ function buildVerdictProse(d: QuickScreen | null, raw?: string): string {
 function buildNeutralSignals(d: QuickScreen | null): string[] {
   if (!d) return [];
   const out: string[] = [];
-  if (d.marketCategory?.summary) out.push(d.marketCategory.summary);
-  if (d.fundingSignal?.stage) out.push(`Stage: ${d.fundingSignal.stage}`);
-  if (d.companyClarity?.isClear === false) out.push("Company description unclear");
+  const marketSummary = summaryOf(d.marketCategory);
+  const funding = d.fundingSignal;
+  const companyClarity = d.companyClarity;
+  if (marketSummary) out.push(marketSummary);
+  if (funding && typeof funding === "object" && "stage" in funding && funding.stage) {
+    out.push(`Stage: ${String(funding.stage)}`);
+  }
+  if (companyClarity && typeof companyClarity === "object" && companyClarity.isClear === false) {
+    out.push("Company description unclear");
+  }
   return out.slice(0, 3);
+}
+
+function summaryOf(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && "summary" in value) {
+    const summary = (value as { summary?: unknown }).summary;
+    return typeof summary === "string" ? summary : "";
+  }
+  return "";
+}
+
+function toList<T>(value: T[] | T | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 /* ---------------- Pills ---------------- */
