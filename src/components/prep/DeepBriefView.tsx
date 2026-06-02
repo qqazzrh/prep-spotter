@@ -23,6 +23,7 @@ export function DeepBriefView({
   onNew: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const summary = getDeepSearchSummary(data, results, raw);
 
   const text = data ? formatDeep(founder, company, data) : raw || "";
 
@@ -52,15 +53,9 @@ export function DeepBriefView({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
           Research summary
         </div>
-        {data?.searchSummary ? (
-          <p className="text-foreground leading-relaxed text-base md:text-lg">
-            {data.searchSummary}
-          </p>
-        ) : raw ? (
-          <pre className="whitespace-pre-wrap text-sm text-foreground">{raw}</pre>
-        ) : (
-          <p className="text-muted-foreground">No summary available.</p>
-        )}
+        <p className="text-foreground leading-relaxed text-base md:text-lg">
+          {summary}
+        </p>
       </div>
 
       {/* Graph: risks by severity + traction confidence */}
@@ -255,6 +250,35 @@ const CONFIDENCE_COLOR: Record<string, string> = {
   medium: "oklch(0.78 0.16 65)",
   low: "oklch(0.65 0.22 25)",
 };
+
+function getDeepSearchSummary(
+  data: DeepBrief | null,
+  results: Record<string, TavilyResponse>,
+  raw?: string
+) {
+  if (data?.searchSummary?.trim()) return data.searchSummary.trim();
+
+  const entries = Object.entries(results);
+  const searchCount = entries.length;
+  const sourceCount = new Set(
+    entries.flatMap(([, response]) => (response.results || []).map((result) => result.url))
+  ).size;
+  const queryLabels = entries
+    .slice(0, 3)
+    .map(([query]) => query)
+    .filter(Boolean);
+
+  if (searchCount > 0) {
+    const scope = queryLabels.length ? ` covering ${queryLabels.join(", ")}` : "";
+    return `Across ${searchCount} searches${scope}, FounderLens found ${sourceCount} unique public sources. The structured summary was not returned by the model, so use the expandable sources below as the verified evidence base and treat any missing sections as unknowns until follow-up diligence confirms them.`;
+  }
+
+  if (raw?.trim()) {
+    return raw.trim().slice(0, 500);
+  }
+
+  return "Across 0 searches, no public sources were available to synthesize. Try adding both founder and company name, then rerun Deep Diligence.";
+}
 
 function DiligenceCharts({ data }: { data: DeepBrief }) {
   const riskBuckets = ["high", "medium", "low"];
