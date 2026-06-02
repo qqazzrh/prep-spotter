@@ -80,10 +80,13 @@ export function usePrepSession() {
 
   const generateBrief = useCallback(
     async (m: Mode) => {
+      setStreamingText("");
       setBrief({ kind: "loading" });
       setPhase("result");
+      const onDelta = (_chunk: string, accumulated: string) =>
+        setStreamingText(accumulated);
       const fn = m === "quick" ? generateQuickScreen : generateDeepBrief;
-      const outcome = await fn(founder, company, resultsRef.current);
+      const outcome = await fn(founder, company, resultsRef.current, onDelta);
       setBrief(
         m === "quick"
           ? { kind: "quick", outcome: outcome as AnthropicOutcome<QuickScreen> }
@@ -93,6 +96,7 @@ export function usePrepSession() {
     },
     [founder, company]
   );
+
 
 
   const start = useCallback(
