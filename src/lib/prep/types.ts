@@ -31,6 +31,7 @@ export type PillId =
   | "brief";
 
 export type QuickScreen = {
+  searchSummary: string;
   companyOneLiner: string;
   founderCredibility: { summary: string; signals: string[]; sourceUrls: string[] };
   companyClarity: { summary: string; isClear: boolean; sourceUrls: string[] };
@@ -44,8 +45,11 @@ export type QuickScreen = {
   theOneQuestion: string;
 };
 
+
 export type DeepBrief = {
+  searchSummary: string;
   executiveSummary: { summary: string; investmentView: string; whyNow: string };
+
   founderMarketFit: { summary: string; strengths: string[]; concerns: string[]; sourceUrls: string[] };
   foundingTeam: {
     summary: string;

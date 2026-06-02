@@ -46,6 +46,14 @@ export function QuickScreenView({
 
       {data && (
         <div className="space-y-5">
+          {data.searchSummary && (
+            <div className="bg-card border-l-4 border-l-[oklch(0.85_0.14_220)] border border-border rounded-xl p-5">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Research summary</div>
+              <p className="text-foreground leading-relaxed">{data.searchSummary}</p>
+            </div>
+          )}
+
+
           <Section title="Company one-liner">
             <p className="text-foreground leading-relaxed">{data.companyOneLiner || UNKNOWN}</p>
           </Section>
