@@ -102,7 +102,8 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       const system = data.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
       const raw = await callAnthropic(
         system,
-        buildUserMessage(data.founder, data.company, data.results)
+        buildUserMessage(data.founder, data.company, data.results),
+        data.mode === "quick" ? 2500 : 5000
       );
       const parsed = extractJson(raw);
       if (parsed && typeof parsed === "object") {
