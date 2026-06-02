@@ -68,6 +68,10 @@ function PrepApp() {
   }
 
   // result
+  if (s.brief.kind === "loading") {
+    return <BriefLoading mode={s.mode} />;
+  }
+
   if (s.brief.kind === "quick") {
     const o = s.brief.outcome;
     if (o.kind === "error") {
