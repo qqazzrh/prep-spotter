@@ -17,10 +17,10 @@ function buildUserMessage(
   for (const [q, r] of Object.entries(results)) {
     trimmed[q] = {
       answer: r.answer,
-      results: (r.results || []).slice(0, 8).map((x) => ({
+      results: (r.results || []).slice(0, 5).map((x) => ({
         title: x.title,
         url: x.url,
-        content: (x.content || "").slice(0, 1500),
+        content: (x.content || "").slice(0, 800),
       })),
     };
   }
@@ -32,7 +32,7 @@ export type AnthropicOutcome<T> =
   | { kind: "raw"; raw: string }
   | { kind: "error"; error: string };
 
-async function callAnthropic(system: string, user: string): Promise<string> {
+async function callAnthropic(system: string, user: string, maxTokens: number): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
 
@@ -44,8 +44,8 @@ async function callAnthropic(system: string, user: string): Promise<string> {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8000,
+      model: "claude-haiku-4-5",
+      max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: user }],
     }),
@@ -102,7 +102,8 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       const system = data.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
       const raw = await callAnthropic(
         system,
-        buildUserMessage(data.founder, data.company, data.results)
+        buildUserMessage(data.founder, data.company, data.results),
+        data.mode === "quick" ? 2500 : 5000
       );
       const parsed = extractJson(raw);
       if (parsed && typeof parsed === "object") {
