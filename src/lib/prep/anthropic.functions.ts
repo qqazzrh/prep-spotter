@@ -96,7 +96,7 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       return data;
     }
   )
-  .handler(async ({ data }): Promise<AnthropicOutcome<unknown>> => {
+  .handler(async ({ data }) => {
     try {
       const system = data.mode === "quick" ? QUICK_SYSTEM : DEEP_SYSTEM;
       const raw = await callAnthropic(
@@ -105,13 +105,14 @@ export const generateBriefFn = createServerFn({ method: "POST" })
       );
       const parsed = extractJson(raw);
       if (parsed && typeof parsed === "object") {
-        return { kind: "ok", data: parsed, raw };
+        return { kind: "ok" as const, data: parsed as Record<string, unknown>, raw };
       }
-      return { kind: "raw", raw };
+      return { kind: "raw" as const, raw };
     } catch (e) {
-      return { kind: "error", error: e instanceof Error ? e.message : String(e) };
+      return { kind: "error" as const, error: e instanceof Error ? e.message : String(e) };
     }
   });
+
 
 export async function generateQuickScreen(
   founder: string,
