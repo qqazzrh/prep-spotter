@@ -23,6 +23,7 @@ export function DeepBriefView({
   onNew: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const summary = getDeepSearchSummary(data, results, raw);
 
   const text = data ? formatDeep(founder, company, data) : raw || "";
 
@@ -52,15 +53,9 @@ export function DeepBriefView({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
           Research summary
         </div>
-        {data?.searchSummary ? (
-          <p className="text-foreground leading-relaxed text-base md:text-lg">
-            {data.searchSummary}
-          </p>
-        ) : raw ? (
-          <pre className="whitespace-pre-wrap text-sm text-foreground">{raw}</pre>
-        ) : (
-          <p className="text-muted-foreground">No summary available.</p>
-        )}
+        <p className="text-foreground leading-relaxed text-base md:text-lg">
+          {summary}
+        </p>
       </div>
 
       {/* Graph: risks by severity + traction confidence */}
