@@ -30,7 +30,7 @@ export function InputScreen({
       <div className="w-full max-w-xl">
         <header className="text-center mb-10">
           <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-foreground">
-            Prep<span className="text-[oklch(0.85_0.14_220)]">.</span>
+            FounderLens<span className="text-[oklch(0.85_0.14_220)]">.</span>
           </h1>
           <p className="mt-4 text-muted-foreground text-base md:text-lg">
             Know if a founder is worth your time before the meeting.

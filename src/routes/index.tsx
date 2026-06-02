@@ -9,9 +9,9 @@ import { DeepBriefView } from "@/components/prep/DeepBriefView";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Prep — Know if a founder is worth your time" },
+      { title: "FounderLens — Know if a founder is worth your time" },
       { name: "description", content: "Fast VC research: founder + company first-pass screen and deep diligence brief, with sources." },
-      { property: "og:title", content: "Prep" },
+      { property: "og:title", content: "FounderLens" },
       { property: "og:description", content: "Know if a founder is worth your time before the meeting." },
     ],
   }),
