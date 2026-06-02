@@ -72,32 +72,36 @@ export function QuickScreenView({
       .filter(Boolean)
       .join(" · ") || titleCase(founder) || "—";
 
-  const verdictTag = (data?.verdictLabel || derivedVerdictLabel(data?.quickVerdict)).toUpperCase();
+  const verdictTag = txt(data?.verdictLabel || derivedVerdictLabel(txt(data?.quickVerdict))).toUpperCase() || "UNCLEAR";
   const tone = verdictTone(verdictTag);
 
   const headline =
-    data?.verdictHeadline ||
-    derivedHeadline(data?.quickVerdict, data?.companyOneLiner);
+    txt(data?.verdictHeadline) ||
+    derivedHeadline(txt(data?.quickVerdict), txt(data?.companyOneLiner));
 
   const convictionSummary =
-    data?.convictionSummary ||
-    data?.searchSummary ||
+    txt(data?.convictionSummary) ||
+    txt(data?.searchSummary) ||
     raw ||
     "";
 
   const founderProfile = data?.founderProfile;
-  const founderName = founderProfile?.name || titleCase(founder) || "";
+  const founderName = txt(founderProfile?.name) || titleCase(founder) || "";
   const founderInitials =
-    founderProfile?.initials || initialsOf(founderName);
-  const founderCreds =
-    founderProfile?.credentials ||
-    deriveFounderCreds(data);
+    txt(founderProfile?.initials) || initialsOf(founderName);
+  const founderCreds = Array.isArray(founderProfile?.credentials)
+    ? founderProfile!.credentials!
+    : deriveFounderCreds(data);
 
-  const founderScores = founderProfile?.scores || {};
+  const founderScores = (founderProfile?.scores && typeof founderProfile.scores === "object"
+    ? founderProfile.scores
+    : {}) as Record<string, unknown>;
 
   const conviction = data?.conviction;
-  const convictionScore = conviction?.score;
-  const cat = conviction?.categoryScores || {};
+  const convictionScore = num(conviction?.score);
+  const cat = (conviction?.categoryScores && typeof conviction.categoryScores === "object"
+    ? conviction.categoryScores
+    : {}) as Record<string, unknown>;
 
   const market = data?.market;
   const greenSignals = data?.greenSignals || deriveGreenSignals(data);
