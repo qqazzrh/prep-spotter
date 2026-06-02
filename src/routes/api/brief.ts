@@ -61,7 +61,7 @@ export const Route = createFileRoute("/api/brief")({
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5",
-            max_tokens: body.mode === "quick" ? 2500 : 7000,
+            max_tokens: body.mode === "quick" ? 4500 : 7000,
             system,
             stream: true,
             messages: [{ role: "user", content: user }],
